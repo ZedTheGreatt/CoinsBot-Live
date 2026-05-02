@@ -54,7 +54,7 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
   const signals: MarketSignal[] = [];
   let lastSignalIndex = -1;
   let lastSignalType: 'BUY' | 'SELL' | null = null;
-  const candleCooldown = 4; // Very active for short-term trading
+  const candleCooldown = 3; // Even more active for scalping/short-term
 
   for (let i = 24; i < candles.length; i++) {
     const isBullishTrend = ema50[i] > ema200[i];
@@ -63,16 +63,16 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
     
     const isBullishCandle = candles[i].close > candles[i].open;
     const isBearishCandle = candles[i].close < candles[i].open;
-    const isVolumeHigh = candles[i].volume > (volAvg20[i] * 1.02); 
+    const isVolumeActive = candles[i].volume > (volAvg20[i] * 1.01); 
 
     let type: MarketSignal['type'] | null = null;
     
-    // BUY: Trend support OR RSI recovery
-    if ((lastSignalType !== 'BUY') && (rsiVal < 50 || isBullishTrend) && isBullishCandle && isVolumeHigh && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
+    // BUY: Catching dips in uptrend or major oversold rebounds
+    if ((lastSignalType !== 'BUY') && (rsiVal < 55 || isBullishTrend) && isBullishCandle && isVolumeActive && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
       type = 'STRONG_BUY';
     } 
-    // SELL: RSI peak OR trend resistance
-    else if ((lastSignalType !== 'SELL') && (rsiVal > 50 || isBearishTrend) && isBearishCandle && isVolumeHigh && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
+    // SELL: Catching peaks in downtrend or overbought pullbacks
+    else if ((lastSignalType !== 'SELL') && (rsiVal > 45 || isBearishTrend) && isBearishCandle && isVolumeActive && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
       type = 'STRONG_SELL';
     }
 
