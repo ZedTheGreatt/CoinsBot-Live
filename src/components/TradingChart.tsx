@@ -233,7 +233,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
   }, [data, symbol]);
 
   return (
-    <div className="relative w-full h-full min-h-[400px] bg-brand-bg rounded-xl overflow-hidden group">
+    <div className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-brand-bg rounded-xl overflow-hidden group">
       <div ref={chartContainerRef} className="w-full h-full" />
       
       {/* Signal Tooltip */}

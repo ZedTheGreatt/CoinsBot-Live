@@ -26,7 +26,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white/5 rounded-xl border border-white/10 p-5 space-y-5 shadow-2xl relative overflow-hidden group"
+        className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-5 space-y-4 sm:space-y-5 shadow-2xl relative overflow-hidden group"
       >
         <div className="absolute top-0 right-0 p-2 opacity-5 scale-150 -rotate-12 translate-x-4 -translate-y-4">
            {isBuy ? <TrendingUp className="w-20 h-20 text-white" /> : <TrendingDown className="w-20 h-20 text-white" />}

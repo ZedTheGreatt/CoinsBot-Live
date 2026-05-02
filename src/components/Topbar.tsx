@@ -13,25 +13,25 @@ interface TopbarProps {
 
 export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen, trend, symbol }: TopbarProps) {
   return (
-    <header className="h-14 border-b border-brand-border flex items-center justify-between px-4 shrink-0 bg-brand-bg">
-      <div className="flex items-center space-x-6">
+    <header className="h-12 sm:h-14 border-b border-brand-border flex items-center justify-between px-3 sm:px-4 shrink-0 bg-brand-bg transition-all">
+      <div className="flex items-center space-x-3 sm:space-x-6">
         <button 
           onClick={onMenuClick}
-          className="lg:hidden p-2 hover:bg-brand-surface rounded-lg text-gray-400 transition-colors"
+          className="lg:hidden p-1.5 sm:p-2 hover:bg-brand-surface rounded-lg text-gray-400 transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-gradient-to-br from-brand-green to-brand-blue rounded-lg flex items-center justify-center">
-            <Activity className="w-5 h-5 text-white" />
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-brand-green to-brand-blue rounded-lg flex items-center justify-center shrink-0">
+            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           <div className="flex flex-col -space-y-1">
-            <span className="text-lg font-black italic tracking-tighter text-white">
+            <span className="text-base sm:text-lg font-black italic tracking-tighter text-white whitespace-nowrap">
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo V2</span>
-              <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></div>
+              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo V2</span>
+              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-brand-green animate-pulse"></div>
             </div>
           </div>
         </div>

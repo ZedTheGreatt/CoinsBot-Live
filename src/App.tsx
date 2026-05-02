@@ -199,7 +199,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
+    <div className="h-[100dvh] bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
       <Topbar 
         onMenuClick={() => setIsSidebarOpen(true)} 
         onSignalsClick={() => {
@@ -246,7 +246,7 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden bg-brand-bg relative">
           
           {/* Chart Toolbar */}
-          <div className="h-12 sm:h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
+          <div className="h-10 sm:h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
             <div className="flex items-center space-x-1 shrink-0">
               {(['1m', '5m', '15m', '1H', '4H', '1D'] as Timeframe[]).map((tf) => (
                 <button
@@ -273,7 +273,7 @@ export default function App() {
           </div>
 
           <div className="flex-1 relative flex flex-col lg:flex-row overflow-hidden">
-            <div className="flex-1 relative h-full min-h-[350px] lg:min-h-0">
+            <div className="flex-1 relative h-full min-h-[300px] lg:min-h-0">
               {/* Watermark */}
               <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] select-none pointer-events-none z-0">
                 <span className="text-[12vw] lg:text-[8vw] font-black uppercase tracking-tighter">CoinsBot</span>
@@ -367,12 +367,12 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="space-y-3">
+                          <div className="space-y-3 shrink-0">
                              <div className="flex items-center gap-2 mb-1">
                                 <Smartphone className="w-3.5 h-3.5 text-gray-500" />
                                 <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Connect Trade</span>
                              </div>
-                             <button className="w-full bg-brand-green hover:bg-emerald-600 active:scale-[0.98] text-black font-black py-4 rounded-xl text-xs uppercase tracking-tighter shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
+                             <button className="w-full bg-brand-green hover:bg-emerald-600 active:scale-[0.98] text-black font-black py-3 sm:py-4 rounded-xl text-xs uppercase tracking-tighter shadow-[0_10px_20px_rgba(16,185,129,0.2)] hover:shadow-[0_15px_30px_rgba(16,185,129,0.4)] transition-all flex items-center justify-center gap-2">
                                 <Zap className="w-4 h-4 fill-current" />
                                 Launch Coins.ph
                              </button>
