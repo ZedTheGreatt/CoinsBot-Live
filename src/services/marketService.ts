@@ -18,11 +18,18 @@ export async function fetchKlines(symbol: string, interval: Timeframe = '1m', li
   const apiInterval = timeframeMap[interval];
   
   try {
-    const response = await fetch(`/api/coins/klines?symbol=${formattedSymbol}&interval=${apiInterval}&limit=${limit}`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const url = `/api/coins/klines?symbol=${formattedSymbol}&interval=${apiInterval}&limit=${limit}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP error! status: ${response.status} - ${text.substring(0, 100)}`);
+    }
     
     const data = await response.json();
-    
+    if (!Array.isArray(data)) {
+      console.warn('Coins.ph API returned unexpected format:', data);
+      return [];
+    }
     // Format: [ [startTime, open, high, low, close, volume, closeTime, ...] ]
     return data.map((item: any[]) => ({
       time: Math.floor(item[0] / 1000), // ms to seconds

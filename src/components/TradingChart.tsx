@@ -4,8 +4,7 @@ import { OHLCCandle, MarketSignal } from '../types';
 import { calculateEMA, generateSignals } from '../lib/engine';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, TrendingUp, TrendingDown, Info, Target, ShieldAlert, Clock } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { cn, formatInPHT } from '../lib/utils';
 
 interface TradingChartProps {
   data: OHLCCandle[];
@@ -44,6 +43,14 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
         borderColor: '#1E2329',
         timeVisible: true,
         secondsVisible: false,
+        tickMarkFormatter: (time: number) => {
+          return formatInPHT(time * 1000, { showDate: false });
+        },
+      },
+      localization: {
+        timeFormatter: (time: number) => {
+          return formatInPHT(time * 1000, { showDate: true, showSeconds: true });
+        },
       },
       rightPriceScale: {
         borderColor: '#1E2329',
@@ -285,7 +292,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
                 <div className="pt-2 border-t border-brand-border flex items-center justify-between text-[9px] text-gray-500 font-medium">
                    <div className="flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
-                      <span>{format(hoveredSignal.time * 1000, 'HH:mm:ss')}</span>
+                      <span>{formatInPHT(hoveredSignal.time * 1000, { showSeconds: true })}</span>
                    </div>
                    <div className="flex items-center gap-1">
                       {hoveredSignal.trend === 'BULLISH' ? <TrendingUp className="w-2.5 h-2.5 text-brand-green" /> : <TrendingDown className="w-2.5 h-2.5 text-red-500" />}

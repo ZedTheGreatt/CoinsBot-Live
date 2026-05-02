@@ -156,7 +156,19 @@ export default function App() {
                 <span className="text-[8vw] font-black uppercase tracking-tighter">CoinsBot</span>
               </div>
               <div className="absolute inset-0 z-10 h-full">
-                <TradingChart data={data} symbol={selectedSymbol} />
+                {data.length > 0 ? (
+                  <TradingChart data={data} symbol={selectedSymbol} />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
+                    <div className="w-12 h-12 border-4 border-brand-green/20 border-t-brand-green rounded-full animate-spin" />
+                    <div className="text-center">
+                      <p className="text-sm font-black uppercase text-gray-400">Synchronizing Market Data</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-1">
+                        {isLoading ? "Fetching Coins.ph klines..." : "No data received. check API proxy."}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
