@@ -29,6 +29,15 @@ export default function App() {
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  useEffect(() => {
+    const updateVh = () => {
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+    };
+    updateVh();
+    window.addEventListener('resize', updateVh);
+    return () => window.removeEventListener('resize', updateVh);
+  }, []);
+
   // Fetch Data from Coins.ph
   const loadMarketData = async () => {
     setIsLoading(true);
@@ -117,34 +126,42 @@ export default function App() {
       else if (alert.condition === 'SIGNAL' && latestSignal) {
         const currentCandleTime = data[data.length - 1].time;
         if (latestSignal.time === currentCandleTime) {
+          // Check if we haven't already notified for this exact signal time to avoid spam
           triggeredAlerts.push(alert);
         }
       }
     });
 
     if (triggeredAlerts.length > 0) {
-      // Play Notification Sound
-      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
-      oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
-      
-      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      oscillator.start();
-      oscillator.stop(audioCtx.currentTime + 0.5);
+      // Play Notification Sound safely
+      try {
+        const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (AudioContextClass) {
+          const audioCtx = new AudioContextClass();
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          oscillator.type = 'sine';
+          oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.5);
+          
+          gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          oscillator.start();
+          oscillator.stop(audioCtx.currentTime + 0.5);
+        }
+      } catch (e) {
+        console.warn("Sound blocked or failed:", e);
+      }
 
       triggeredAlerts.forEach(alert => {
         let msg = "";
         if (alert.condition === 'SIGNAL' && latestSignal) {
-           msg = `${alert.symbol} ${latestSignal.trend} Signal Detected!`;
+           msg = `${alert.symbol} ${latestSignal.type.replace('_', ' ')} detected!`;
         } else {
            msg = `${alert.symbol} reached ₱${alert.targetPrice?.toLocaleString()}`;
         }
@@ -152,26 +169,35 @@ export default function App() {
         // Trigger UI Notification
         setActiveNotification(msg);
         
-        // Browser Notification
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification(`CoinsBot Alert: ${alert.symbol}`, {
-            body: msg,
-            icon: '/favicon.ico'
-          });
+        // Browser Notification (Safe Guard)
+        try {
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification(`CoinsBot Alert: ${alert.symbol}`, {
+              body: msg,
+              icon: '/favicon.ico'
+            });
+          }
+        } catch (e) {
+          console.warn("Notification failed:", e);
         }
       });
 
-      // Update state: Disable one-shot price alerts, but KEEP Signal alerts active
-      setAlerts(prev => prev.map(a => {
-        const triggered = triggeredAlerts.find(ta => ta.id === a.id);
-        if (triggered && triggered.condition !== 'SIGNAL') {
-           return { ...a, isActive: false };
-        }
-        return a;
-      }));
+      // Update state: Disable one-shot price alerts, but keep Signal alerts active 
+      // to avoid infinite loops, we only update if we actually have one-shot alerts
+      const hasOneShot = triggeredAlerts.some(ta => ta.condition !== 'SIGNAL');
+      if (hasOneShot) {
+        setAlerts(prev => prev.map(a => {
+          const triggered = triggeredAlerts.find(ta => ta.id === a.id);
+          if (triggered && triggered.condition !== 'SIGNAL') {
+             return { ...a, isActive: false };
+          }
+          return a;
+        }));
+      }
 
       // Clear toast after 5s
-      setTimeout(() => setActiveNotification(null), 5000);
+      const toastTimer = setTimeout(() => setActiveNotification(null), 5000);
+      return () => clearTimeout(toastTimer);
     }
   }, [data, alerts, selectedSymbol, signals]);
 
@@ -199,7 +225,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
+    <div className="h-screen-fix bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
       <Topbar 
         onMenuClick={() => setIsSidebarOpen(true)} 
         onSignalsClick={() => {
@@ -229,7 +255,7 @@ export default function App() {
               onClick={() => setIsSidebarOpen(false)}
             />
           )}
-          <div className="relative w-72 h-full shadow-2xl lg:shadow-none">
+          <div className="relative w-72 h-full shadow-2xl lg:shadow-none bg-brand-bg">
             <Sidebar 
               selectedSymbol={selectedSymbol} 
               onSymbolSelect={(s) => {
@@ -243,10 +269,10 @@ export default function App() {
         </div>
 
         {/* Center Section: Chart and Market Stats */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-brand-bg relative">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative">
           
           {/* Chart Toolbar */}
-          <div className="h-10 sm:h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
+          <div className="h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
             <div className="flex items-center space-x-1 shrink-0">
               {(['1m', '5m', '15m', '1H', '4H', '1D'] as Timeframe[]).map((tf) => (
                 <button
@@ -273,12 +299,12 @@ export default function App() {
           </div>
 
           <div className="flex-1 relative flex flex-col lg:flex-row overflow-hidden">
-            <div className="flex-1 relative h-full min-h-[300px] lg:min-h-0">
+            <div className="flex-1 relative min-h-0">
               {/* Watermark */}
               <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] select-none pointer-events-none z-0">
                 <span className="text-[12vw] lg:text-[8vw] font-black uppercase tracking-tighter">CoinsBot</span>
               </div>
-              <div className="absolute inset-0 z-10 h-full">
+              <div className="absolute inset-0 z-10">
                 {data.length > 0 ? (
                   <TradingChart data={data} symbol={selectedSymbol} />
                 ) : (

@@ -15,6 +15,9 @@
 }
 
 @layer utilities {
+  .h-screen-fix {
+    height: calc(var(--vh, 1vh) * 100);
+  }
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
     height: 4px;
