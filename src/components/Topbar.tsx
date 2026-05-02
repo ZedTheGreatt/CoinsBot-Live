@@ -7,9 +7,11 @@ interface TopbarProps {
   onAlertsClick?: () => void;
   isSignalsOpen?: boolean;
   isAlertsOpen?: boolean;
+  trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  symbol?: string;
 }
 
-export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen }: TopbarProps) {
+export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen, trend, symbol }: TopbarProps) {
   return (
     <header className="h-14 border-b border-brand-border flex items-center justify-between px-4 shrink-0 bg-brand-bg">
       <div className="flex items-center space-x-6">
@@ -28,12 +30,30 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo Alpha</span>
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo V2</span>
               <div className="w-1.5 h-1.5 rounded-full bg-brand-green animate-pulse"></div>
             </div>
           </div>
         </div>
-        <nav className="hidden md:flex items-center space-x-4 text-sm font-medium text-gray-400">
+        
+        {/* Trend Indicator */}
+        <div className="hidden lg:flex items-center gap-4 border-l border-brand-border pl-6 ml-2">
+           <div className="flex flex-col">
+              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">{symbol}/PIHP</span>
+              <div className="flex items-center gap-2">
+                 <div className={cn(
+                    "px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter flex items-center gap-1",
+                    trend === 'BULLISH' ? "bg-brand-green/20 text-brand-green" : 
+                    trend === 'BEARISH' ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
+                 )}>
+                    Trend: {trend || 'NEUTRAL'}
+                    {trend === 'BULLISH' ? '🟢' : trend === 'BEARISH' ? '🔴' : '⚪'}
+                 </div>
+              </div>
+           </div>
+        </div>
+
+        <nav className="hidden xl:flex items-center space-x-4 text-sm font-medium text-gray-400">
           <span className="px-2 py-1 bg-gray-800 text-white rounded cursor-default">Market</span>
           <span className="px-2 py-1 hover:text-white cursor-pointer transition-colors">Portfolio</span>
           <button 

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Zap, Clock } from 'lucide-react';
+import { Target, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Zap, Clock, Activity } from 'lucide-react';
 import { MarketSignal } from '../types';
 import { cn } from '../lib/utils';
 
@@ -12,7 +12,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
   if (!signal) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-brand-surface rounded-xl border border-brand-border border-dashed">
-        <ActivityIcon className="w-8 h-8 text-gray-700 mb-4 animate-pulse" />
+        <Activity className="w-8 h-8 text-gray-700 mb-4 animate-pulse" />
         <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest">Scanning Market Bias...</p>
       </div>
     );
@@ -45,30 +45,33 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-4 relative">
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5">
+          <div className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col items-center">
             <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Confidence</p>
-            <p className="text-2xl font-mono font-black text-white">{signal.confidence}%</p>
+            <p className="text-2xl font-mono font-black text-white italic">{signal.confidence}%</p>
           </div>
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Volatility</p>
-            <p className="text-2xl font-mono font-black text-brand-blue">MED</p>
+          <div className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col items-center">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">RSI Status</p>
+            <p className={cn(
+              "text-2xl font-mono font-black italic",
+              rsi < 40 ? "text-brand-green" : rsi > 60 ? "text-brand-red" : "text-gray-400"
+            )}>{Math.round(rsi)}</p>
           </div>
         </div>
 
         <div className="space-y-4 relative">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Take Profit</span>
-            <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span>
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Target Alpha</span>
+            <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Stop Loss</span>
-            <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span>
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Max Protection</span>
+            <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="h-px bg-white/10"></div>
           <div className="space-y-2">
-            <IndicatorItem label="EMA(50/200) Cross" value={isBuy ? "BULLISH" : "BEARISH"} active={true} />
-            <IndicatorItem label="Momentum RSI" value={rsi > 50 ? "ASCENDING" : "DESCENDING"} active={true} />
-            <IndicatorItem label="Volume Spike" value="DETECTED" active={true} />
+            <IndicatorItem label="Alpha Cross (EMA)" value={isBuy ? "BULL SHIFT" : "BEAR SHIFT"} color={isBuy ? 'green' : 'red'} />
+            <IndicatorItem label="Momentum Gate" value={rsi < 40 ? "RECOVERY" : rsi > 60 ? "OVEREXTENDED" : "NEUTRAL"} color={rsi < 40 ? 'green' : rsi > 60 ? 'red' : 'gray'} />
+            <IndicatorItem label="Volume Matrix" value="SPIKE CONFIRMED" color='green' />
           </div>
         </div>
       </motion.div>
@@ -76,19 +79,14 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
   );
 }
 
-function IndicatorItem({ label, value, active }: { label: string, value: string, active: boolean }) {
+function IndicatorItem({ label, value, color }: { label: string, value: string, color: 'green' | 'red' | 'gray' }) {
   return (
     <div className="flex items-center justify-between text-[10px]">
       <span className="text-gray-500 uppercase font-bold">{label}</span>
-      <span className={cn("font-black", active ? "text-brand-green" : "text-gray-400")}>{value}</span>
+      <span className={cn(
+        "font-black tracking-tighter",
+        color === 'green' ? "text-brand-green" : color === 'red' ? "text-brand-red" : "text-gray-400"
+      )}>{value}</span>
     </div>
-  );
-}
-
-function ActivityIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" height="24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
   );
 }

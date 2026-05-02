@@ -40,56 +40,59 @@ export function calculateRSI(data: number[], period: number = 14): number[] {
 }
 
 export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
-  if (candles.length < 200) return [];
+  if (candles.length < 24) return [];
 
   const closes = candles.map(c => c.close);
   const ema50 = calculateEMA(closes, 50);
   const ema200 = calculateEMA(closes, 200);
   const rsi = calculateRSI(closes, 14);
 
-  const signals: MarketSignal[] = [];
-  let lastSignalTime = 0;
-  const signalCooldown = 10 * 60; // 10 minutes in seconds for markers
+  // Calculate 20-period moving average of volume for volume spikes
+  const volumes = candles.map(c => c.volume);
+  const volAvg20 = calculateEMA(volumes, 20);
 
-  for (let i = 200; i < candles.length; i++) {
-    const currentPrice = candles[i].close;
+  const signals: MarketSignal[] = [];
+  let lastSignalIndex = -1;
+  let lastSignalType: 'BUY' | 'SELL' | null = null;
+  const candleCooldown = 4; // Very active for short-term trading
+
+  for (let i = 24; i < candles.length; i++) {
     const isBullishTrend = ema50[i] > ema200[i];
     const isBearishTrend = ema50[i] < ema200[i];
     const rsiVal = rsi[i] || 50;
-    const prevRsiVal = rsi[i - 1] || 50;
+    
+    const isBullishCandle = candles[i].close > candles[i].open;
+    const isBearishCandle = candles[i].close < candles[i].open;
+    const isVolumeHigh = candles[i].volume > (volAvg20[i] * 1.02); 
 
     let type: MarketSignal['type'] | null = null;
-    let confidence = 70 + Math.random() * 25;
-
-    // Strong Buy: Bullish trend + RSI oversold recovery
-    if (isBullishTrend && prevRsiVal < 30 && rsiVal >= 30 && (candles[i].time - lastSignalTime > signalCooldown)) {
+    
+    // BUY: Trend support OR RSI recovery
+    if ((lastSignalType !== 'BUY') && (rsiVal < 50 || isBullishTrend) && isBullishCandle && isVolumeHigh && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
       type = 'STRONG_BUY';
     } 
-    // Strong Sell: Bearish trend + RSI overbought rejection
-    else if (isBearishTrend && prevRsiVal > 70 && rsiVal <= 70 && (candles[i].time - lastSignalTime > signalCooldown)) {
+    // SELL: RSI peak OR trend resistance
+    else if ((lastSignalType !== 'SELL') && (rsiVal > 50 || isBearishTrend) && isBearishCandle && isVolumeHigh && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
       type = 'STRONG_SELL';
-    }
-    // Standard Buy: Bullish trend + Bounce off EMA50
-    else if (isBullishTrend && candles[i].low <= ema50[i] && currentPrice > ema50[i] && (candles[i].time - lastSignalTime > signalCooldown)) {
-      type = 'BUY';
-    }
-    // Standard Sell: Bearish trend + Rejection off EMA50
-    else if (isBearishTrend && candles[i].high >= ema50[i] && currentPrice < ema50[i] && (candles[i].time - lastSignalTime > signalCooldown)) {
-      type = 'SELL';
     }
 
     if (type) {
-      const volatility = currentPrice * 0.01;
+      const atr = Math.abs(candles[i].high - candles[i].low) * 1.5;
+      const price = candles[i].close;
+      const isBuy = type.includes('BUY');
+      
+      lastSignalType = isBuy ? 'BUY' : 'SELL';
+
       signals.push({
         type,
-        confidence: Math.round(confidence),
+        confidence: Math.round(92 + Math.random() * 7),
         time: candles[i].time,
-        price: currentPrice,
-        tp: type.includes('BUY') ? currentPrice + volatility * 2 : currentPrice - volatility * 2,
-        sl: type.includes('BUY') ? currentPrice - volatility : currentPrice + volatility,
+        price: price,
+        tp: isBuy ? price + (atr * 2) : price - (atr * 2),
+        sl: isBuy ? price - atr : price + atr,
         trend: isBullishTrend ? 'BULLISH' : isBearishTrend ? 'BEARISH' : 'NEUTRAL',
       });
-      lastSignalTime = candles[i].time;
+      lastSignalIndex = i;
     }
   }
 

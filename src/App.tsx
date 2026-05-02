@@ -212,6 +212,8 @@ export default function App() {
         }}
         isSignalsOpen={isSignalsOpen}
         isAlertsOpen={isAlertsOpen}
+        trend={currentSignal?.trend}
+        symbol={selectedSymbol}
       />
 
       <main className="flex-1 flex overflow-hidden relative">

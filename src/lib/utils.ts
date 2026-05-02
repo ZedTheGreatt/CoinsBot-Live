@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatInPHT(timestamp: number, options: { showDate?: boolean, showSeconds?: boolean } = {}) {
+export function formatInPHT(timestamp: number, options: { showDate?: boolean, showSeconds?: boolean, concise?: boolean } = {}) {
   const dateOptions: Intl.DateTimeFormatOptions = {
     timeZone: 'Asia/Manila',
     hour: '2-digit',
@@ -18,7 +18,9 @@ export function formatInPHT(timestamp: number, options: { showDate?: boolean, sh
   }
 
   if (options.showDate) {
-    dateOptions.year = 'numeric';
+    if (!options.concise) {
+      dateOptions.year = 'numeric';
+    }
     dateOptions.month = 'short';
     dateOptions.day = '2-digit';
   }
