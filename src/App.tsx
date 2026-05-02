@@ -246,14 +246,14 @@ export default function App() {
         <div className="flex-1 flex flex-col overflow-hidden bg-brand-bg relative">
           
           {/* Chart Toolbar */}
-          <div className="h-10 border-b border-brand-border flex items-center px-4 space-x-6 shrink-0 bg-brand-surface">
-            <div className="flex space-x-1">
+          <div className="h-12 sm:h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
+            <div className="flex items-center space-x-1 shrink-0">
               {(['1m', '5m', '15m', '1H', '4H', '1D'] as Timeframe[]).map((tf) => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
                   className={cn(
-                    "px-2.5 py-1 text-[10px] font-black uppercase tracking-tight transition-all rounded outline-none",
+                    "px-3 py-1.5 sm:px-2.5 sm:py-1 text-[10px] font-black uppercase tracking-tight transition-all rounded outline-none whitespace-nowrap",
                     timeframe === tf ? "text-brand-green bg-gray-800" : "text-gray-400 hover:text-white"
                   )}
                 >
@@ -261,23 +261,22 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <div className="w-px h-4 bg-gray-700 hidden sm:block"></div>
-            <div className="hidden lg:flex items-center space-x-6">
+            <div className="w-px h-4 bg-gray-700 shrink-0 hidden sm:block"></div>
+            <div className="hidden sm:flex items-center space-x-6 shrink-0">
               <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest leading-none">
-                EMA(50): <span className="text-brand-blue tabular-nums ml-1">{(currentPrice * 0.99).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                EMA(50): <span className="text-brand-blue tabular-nums ml-1">₱{(currentPrice * 0.99).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </span>
               <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest leading-none">
-                EMA(200): <span className="text-brand-yellow tabular-nums ml-1">{(currentPrice * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                EMA(200): <span className="text-brand-yellow tabular-nums ml-1">₱{(currentPrice * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
               </span>
             </div>
           </div>
 
-          {/* Main Chart Area */}
-          <div className="flex-1 relative flex overflow-hidden">
-            <div className="flex-1 relative h-full">
+          <div className="flex-1 relative flex flex-col lg:flex-row overflow-hidden">
+            <div className="flex-1 relative h-full min-h-[350px] lg:min-h-0">
               {/* Watermark */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] select-none pointer-events-none z-0">
-                <span className="text-[8vw] font-black uppercase tracking-tighter">CoinsBot</span>
+              <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] select-none pointer-events-none z-0">
+                <span className="text-[12vw] lg:text-[8vw] font-black uppercase tracking-tighter">CoinsBot</span>
               </div>
               <div className="absolute inset-0 z-10 h-full">
                 {data.length > 0 ? (
@@ -425,6 +424,13 @@ export default function App() {
       </main>
 
       <style>{`
+        .no-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .no-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
         }
@@ -439,54 +445,6 @@ export default function App() {
           background: #334155;
         }
       `}</style>
-    </div>
-  );
-}
-
-function StatCard({ label, value, icon: Icon, trend }: { label: string, value: string, icon: any, trend?: number }) {
-  return (
-    <div className="group bg-slate-950/40 backdrop-blur-sm border border-slate-800/50 p-4 rounded-2xl hover:bg-slate-900/40 transition-all hover:border-slate-700/50">
-      <div className="flex items-center justify-between mb-2">
-        <div className="p-2 bg-slate-900 rounded-xl group-hover:scale-110 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 transition-all text-slate-500">
-          <Icon className="w-4 h-4" />
-        </div>
-        {trend && (
-          <span className={cn(
-            "text-[10px] font-black italic",
-            trend > 0 ? "text-emerald-400" : "text-red-400"
-          )}>
-            {trend > 0 ? '+' : ''}{trend}%
-          </span>
-        )}
-      </div>
-      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-0.5">{label}</div>
-      <div className="text-lg font-black text-slate-100 tabular-nums truncate">{value}</div>
-    </div>
-  );
-}
-
-function IndicatorRow({ label, value, intensity, color }: { label: string, value: string, intensity: number, color: 'emerald' | 'indigo' | 'red' }) {
-  const colorMap = {
-    emerald: 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]',
-    indigo: 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.3)]',
-    red: 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.3)]'
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between items-center text-[10px] font-bold uppercase">
-        <span className="text-slate-400">{label}</span>
-        <span className={cn(
-          color === 'emerald' ? 'text-emerald-400' : color === 'red' ? 'text-red-400' : 'text-indigo-400'
-        )}>{value}</span>
-      </div>
-      <div className="h-1.5 w-full bg-slate-900 rounded-full overflow-hidden">
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: `${intensity}%` }}
-          className={cn("h-full rounded-full transition-all duration-1000", colorMap[color])}
-        />
-      </div>
     </div>
   );
 }

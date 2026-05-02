@@ -35,29 +35,29 @@ export default function Sidebar({ selectedSymbol, onSymbolSelect, currentPrice, 
                 key={coin.symbol}
                 onClick={() => onSymbolSelect(coin.symbol)}
                 className={cn(
-                  "w-full flex items-center justify-between p-2 rounded cursor-pointer transition-all border-l-2 outline-none",
+                  "w-full flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all border outline-none group/btn",
                   isActive 
-                    ? "bg-brand-border border-brand-green" 
-                    : "hover:bg-brand-surface border-transparent"
+                    ? "bg-brand-surface border-brand-green shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]" 
+                    : "hover:bg-brand-surface/70 border-transparent hover:border-brand-border"
                 )}
               >
-                <div className="flex items-center space-x-2 text-left">
+                <div className="flex items-center space-x-3 text-left">
                   <div className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold",
-                    isActive ? "bg-brand-green/20 text-brand-green" : "bg-gray-800 text-gray-400"
+                    "w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black transition-all",
+                    isActive ? "bg-brand-green text-black scale-110" : "bg-brand-border text-gray-500 group-hover/btn:text-gray-300"
                   )}>
                     {coin.icon}
                   </div>
                   <div>
-                    <p className={cn("text-xs font-bold", isActive ? "text-white" : "text-gray-300")}>{coin.pair}</p>
-                    <p className="text-[10px] text-gray-500 font-medium">{coin.name}</p>
+                    <p className={cn("text-[11px] font-black uppercase tracking-tight", isActive ? "text-white" : "text-gray-400 group-hover/btn:text-white")}>{coin.pair}</p>
+                    <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">{coin.name}</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className={cn("text-xs font-mono font-bold", isActive ? "text-white" : "text-gray-400")}>
-                    {isActive ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '---'}
+                  <p className={cn("text-xs font-mono font-black italic", isActive ? "text-brand-green" : "text-gray-500 group-hover/btn:text-gray-300")}>
+                    {isActive ? `₱${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '---'}
                   </p>
-                  <p className="text-[10px] text-brand-green font-bold">+2.45%</p>
+                  <p className="text-[9px] text-brand-green font-black">+2.45%</p>
                 </div>
               </button>
             );

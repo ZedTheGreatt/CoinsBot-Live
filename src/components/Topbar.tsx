@@ -106,10 +106,10 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
         </div>
 
         <div className="hidden sm:flex flex-col items-end">
-          <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Market Status</span>
+          <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1">Market Connectivity</span>
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-brand-green rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-            <span className="text-[10px] text-brand-green font-mono font-bold">LIVE CONNECTED</span>
+            <span className="text-[10px] text-brand-green font-mono font-black italic">PH-RE-01 LIVE</span>
           </div>
         </div>
         <div className="h-8 w-px bg-brand-border hidden sm:block"></div>

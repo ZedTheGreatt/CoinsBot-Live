@@ -3,7 +3,7 @@ import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, LineDat
 import { OHLCCandle, MarketSignal } from '../types';
 import { calculateEMA, generateSignals } from '../lib/engine';
 import { motion, AnimatePresence } from 'motion/react';
-import { Zap, TrendingUp, TrendingDown, Info, Target, ShieldAlert, Clock } from 'lucide-react';
+import { Zap, TrendingUp, TrendingDown, Info, Target, ShieldAlert, Clock, Activity } from 'lucide-react';
 import { cn, formatInPHT } from '../lib/utils';
 
 interface TradingChartProps {
@@ -249,7 +249,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
               top: tooltipPos.y - 120, // Offset to appear above the cursor
             }}
           >
-            <div className="bg-brand-bg/95 backdrop-blur-md border border-brand-border p-4 rounded-xl shadow-2xl min-w-[200px] ring-1 ring-white/5">
+            <div className="bg-brand-bg/95 backdrop-blur-md border border-brand-border p-4 rounded-xl shadow-2xl min-w-[180px] max-w-[240px] ring-1 ring-white/5 relative">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={cn(
@@ -263,8 +263,8 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
                     {hoveredSignal.type.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">
-                  <span className="text-[10px] font-bold text-gray-400">
+                <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 shrink-0">
+                  <span className="text-[9px] font-black text-gray-500 uppercase tracking-tighter">
                     {hoveredSignal.confidence}% Conf.
                   </span>
                 </div>
@@ -321,14 +321,17 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
       </AnimatePresence>
 
       {/* TradingView Style Watermark/Header */}
-      <div className="absolute top-6 left-6 z-10 pointer-events-none select-none">
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 pointer-events-none select-none">
          <div className="flex flex-col gap-0.5">
-            <span className="text-[11px] font-medium text-gray-400/80">
-              {symbol} / PHP, 1h, Local
+            <span className="text-[10px] sm:text-[11px] font-medium text-gray-500">
+              {symbol} / PHP, {data.length > 0 ? formatInPHT(data[data.length-1].time * 1000, { concise: true }) : '---'}
             </span>
-            <span className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">
-              GainzAlgo V2 <span className="text-brand-green">[Alpha]</span> <span className="text-[9px] opacity-60 font-medium">(1:2, Huge Bubbles, Signal Engine)</span>
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                <Activity className="w-3 h-3 text-brand-green" />
+                CoinsBot <span className="text-brand-green">GainzAlgo V2</span>
+              </span>
+            </div>
          </div>
       </div>
     </div>

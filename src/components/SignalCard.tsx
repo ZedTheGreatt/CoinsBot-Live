@@ -44,15 +44,18 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 relative">
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col items-center">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Confidence</p>
-            <p className="text-2xl font-mono font-black text-white italic">{signal.confidence}%</p>
+        <div className="grid grid-cols-2 gap-3 relative">
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-brand-green/30 transition-colors">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">Confidence</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-mono font-black text-white italic tracking-tighter">{signal.confidence}</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase">%</span>
+            </div>
           </div>
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5 flex flex-col items-center">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">RSI Status</p>
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-white/20 transition-colors">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">RSI 14</p>
             <p className={cn(
-              "text-2xl font-mono font-black italic",
+              "text-2xl font-mono font-black italic tracking-tighter",
               rsi < 40 ? "text-brand-green" : rsi > 60 ? "text-brand-red" : "text-gray-400"
             )}>{Math.round(rsi)}</p>
           </div>
