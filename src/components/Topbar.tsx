@@ -4,10 +4,12 @@ import { cn } from '../lib/utils';
 interface TopbarProps {
   onMenuClick?: () => void;
   onSignalsClick?: () => void;
+  onAlertsClick?: () => void;
   isSignalsOpen?: boolean;
+  isAlertsOpen?: boolean;
 }
 
-export default function Topbar({ onMenuClick, onSignalsClick, isSignalsOpen }: TopbarProps) {
+export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen }: TopbarProps) {
   return (
     <header className="h-14 border-b border-brand-border flex items-center justify-between px-4 shrink-0 bg-brand-bg">
       <div className="flex items-center space-x-6">
@@ -44,21 +46,44 @@ export default function Topbar({ onMenuClick, onSignalsClick, isSignalsOpen }: T
             Signals
             <Zap className={cn("w-3 h-3", isSignalsOpen ? "fill-brand-green" : "")} />
           </button>
+          <button 
+            onClick={onAlertsClick}
+            className={cn(
+              "px-2 py-1 hover:text-brand-yellow cursor-pointer transition-colors flex items-center gap-1.5",
+              isAlertsOpen ? "text-brand-yellow font-bold" : ""
+            )}
+          >
+            Alerts
+            <Bell className={cn("w-3 h-3", isAlertsOpen ? "fill-brand-yellow" : "")} />
+          </button>
         </nav>
       </div>
       
       <div className="flex items-center space-x-3 sm:space-x-6">
-        <button 
-          onClick={onSignalsClick}
-          className={cn(
-            "md:hidden p-2 rounded-lg transition-all flex items-center justify-center",
-            isSignalsOpen 
-              ? "bg-brand-green text-black" 
-              : "bg-brand-surface text-gray-400 hover:text-white border border-brand-border"
-          )}
-        >
-          <Zap className="w-4 h-4 fill-current" />
-        </button>
+        <div className="flex items-center md:hidden gap-2">
+          <button 
+            onClick={onSignalsClick}
+            className={cn(
+              "p-2 rounded-lg transition-all flex items-center justify-center",
+              isSignalsOpen 
+                ? "bg-brand-green text-black" 
+                : "bg-brand-surface text-gray-400 hover:text-white border border-brand-border"
+            )}
+          >
+            <Zap className="w-4 h-4 fill-current" />
+          </button>
+          <button 
+            onClick={onAlertsClick}
+            className={cn(
+              "p-2 rounded-lg transition-all flex items-center justify-center",
+              isAlertsOpen 
+                ? "bg-brand-yellow text-black" 
+                : "bg-brand-surface text-gray-400 hover:text-white border border-brand-border"
+            )}
+          >
+            <Bell className="w-4 h-4 fill-current" />
+          </button>
+        </div>
 
         <div className="hidden sm:flex flex-col items-end">
           <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Market Status</span>

@@ -26,6 +26,14 @@ export interface CoinMetadata {
   pair: string;
 }
 
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  targetPrice?: number;
+  condition: 'ABOVE' | 'BELOW' | 'SIGNAL';
+  isActive: boolean;
+  createdAt: number;
+}
 export const SUPPORTED_COINS: CoinMetadata[] = [
   { symbol: 'BTC', name: 'Bitcoin', icon: '₿', pair: 'BTC/PHP' },
   { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ', pair: 'ETH/PHP' },
