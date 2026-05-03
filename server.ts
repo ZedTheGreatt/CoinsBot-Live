@@ -74,9 +74,11 @@ async function startServer() {
 
   app.get("/api/coins/ticker", async (req, res) => {
     const { symbol } = req.query;
-    console.log(`[Proxy] Fetching ticker for ${symbol}`);
+    console.log(`[Proxy] Fetching ticker for ${symbol || 'ALL'}`);
     try {
-      const url = `https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=${symbol}`;
+      const url = symbol 
+        ? `https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=${symbol}`
+        : `https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr`;
       const data = await httpsRequest(url);
       res.json(data);
     } catch (error) {

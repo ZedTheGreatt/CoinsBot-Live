@@ -8,9 +8,10 @@ interface CoinDropdownProps {
   selectedSymbol: string;
   onSymbolSelect: (symbol: string) => void;
   currentPrice: number;
+  allTickers?: Record<string, { price: number, percent: number }>;
 }
 
-export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPrice }: CoinDropdownProps) {
+export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPrice, allTickers = {} }: CoinDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -101,6 +102,11 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
               <div className="max-h-[400px] overflow-y-auto custom-scrollbar p-4 pt-0 space-y-1.5">
                 {filteredCoins.map(coin => {
                   const isActive = coin.symbol === selectedSymbol;
+                  const ticker = allTickers[coin.symbol + 'PHP'];
+                  const price = ticker?.price || (isActive ? currentPrice : 0);
+                  const change = ticker?.percent || 0;
+                  const isPositive = change >= 0;
+
                   return (
                     <button
                       key={coin.symbol}
@@ -130,12 +136,17 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={cn(
-                          "text-xs font-mono font-black",
-                          isActive ? "text-brand-green" : "text-gray-400"
+                          "text-sm font-mono font-black",
+                          isActive ? "text-brand-green" : "text-gray-200"
                         )}>
-                          ₱{currentPrice.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                          ₱{price > 0 ? price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '---'}
                         </span>
-                        {isActive && <Activity className="w-3.5 h-3.5 text-brand-green animate-pulse mt-1" />}
+                        <div className={cn(
+                          "flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-black font-mono",
+                          isPositive ? "text-brand-green bg-brand-green/10" : "text-brand-red bg-brand-red/10"
+                        )}>
+                          {isPositive ? '+' : ''}{change.toFixed(2)}%
+                        </div>
                       </div>
                     </button>
                   );

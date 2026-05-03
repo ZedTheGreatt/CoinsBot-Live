@@ -76,3 +76,23 @@ export async function fetchTicker(symbol: string) {
     return null;
   }
 }
+
+export async function fetchAllTickers() {
+  try {
+    const url = `/api/coins/ticker`; // No symbol should return all
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    
+    if (!Array.isArray(data)) return [];
+    
+    return data.map((item: any) => ({
+      symbol: item.symbol,
+      price: parseFloat(item.lastPrice || '0'),
+      priceChangePercent: parseFloat(item.priceChangePercent || '0'),
+    }));
+  } catch (error) {
+    console.error('Error fetching all tickers:', error);
+    return [];
+  }
+}

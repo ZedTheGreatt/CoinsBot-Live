@@ -7,7 +7,7 @@ import CoinDropdown from './components/CoinDropdown';
 import NavMenu from './components/NavMenu';
 import { OHLCCandle, MarketSignal, SUPPORTED_COINS, Timeframe, PriceAlert } from './types';
 import { generateSignals, calculateRSI } from './lib/engine';
-import { fetchKlines, fetchTicker } from './services/marketService';
+import { fetchKlines, fetchTicker, fetchAllTickers } from './services/marketService';
 import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity } from 'lucide-react';
 import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
@@ -29,6 +29,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
+  const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number }>>({});
   const [tickerData, setTickerData] = useState<{
     priceChange: number;
     priceChangePercent: number;
@@ -105,6 +106,17 @@ export default function App() {
             volume: ticker.volume,
             quoteVolume: ticker.quoteVolume
           });
+        }
+      });
+
+      // Poll all tickers for the dropdown
+      fetchAllTickers().then(tickers => {
+        if (tickers && tickers.length > 0) {
+          const map: Record<string, { price: number, percent: number }> = {};
+          tickers.forEach((t: any) => {
+            map[t.symbol] = { price: t.price, percent: t.priceChangePercent };
+          });
+          setAllTickers(map);
         }
       });
 
@@ -354,6 +366,7 @@ export default function App() {
                 selectedSymbol={selectedSymbol}
                 onSymbolSelect={setSelectedSymbol}
                 currentPrice={currentPrice}
+                allTickers={allTickers}
               />
             </div>
             
