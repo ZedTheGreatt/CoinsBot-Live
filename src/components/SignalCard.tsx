@@ -52,17 +52,53 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
               <span className="text-[10px] font-black text-gray-500 uppercase">%</span>
             </div>
           </div>
-          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-white/20 transition-colors">
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-white/20 transition-colors relative overflow-hidden">
             <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">RSI 14</p>
             <p className={cn(
-              "text-2xl font-mono font-black italic tracking-tighter",
-              rsi < 40 ? "text-brand-green" : rsi > 60 ? "text-brand-red" : "text-gray-400"
+              "text-2xl font-mono font-black italic tracking-tighter z-10",
+              rsi < 30 ? "text-brand-green" : rsi > 70 ? "text-brand-red" : "text-gray-400"
             )}>{Math.round(rsi)}</p>
+            <div className="absolute bottom-0 left-0 h-1 bg-white/5 w-full">
+              <motion.div 
+                className={cn(
+                  "h-full",
+                  rsi < 30 ? "bg-brand-green" : rsi > 70 ? "bg-brand-red" : "bg-brand-blue"
+                )}
+                initial={{ width: 0 }}
+                animate={{ width: `${rsi}%` }}
+              />
+            </div>
           </div>
         </div>
 
         <div className="space-y-4 relative">
-          <div className="flex items-center justify-between">
+          <div className="p-3 bg-black/40 rounded-xl border border-white/5 space-y-3">
+             <div className="flex items-center justify-between">
+               <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest opacity-60">SENTIMENT</span>
+               <span className={cn(
+                 "text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded",
+                 rsi < 40 ? "bg-brand-green/20 text-brand-green" : rsi > 60 ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
+               )}>
+                 {rsi < 30 ? "OVERSOLD" : rsi > 70 ? "OVERBOUGHT" : rsi < 40 ? "BULLISH" : rsi > 60 ? "BEARISH" : "NEUTRAL"}
+               </span>
+             </div>
+             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden flex">
+                <motion.div 
+                   className="h-full bg-brand-green"
+                   initial={{ width: '50%' }}
+                   animate={{ width: `${100 - rsi}%` }}
+                   transition={{ type: 'spring', damping: 20 }}
+                />
+                <motion.div 
+                   className="h-full bg-brand-red"
+                   initial={{ width: '50%' }}
+                   animate={{ width: `${rsi}%` }}
+                   transition={{ type: 'spring', damping: 20 }}
+                />
+             </div>
+          </div>
+
+          <div className="flex items-center justify-between px-1">
             <span className="text-[10px] text-gray-500 uppercase font-bold">Target Alpha</span>
             <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>

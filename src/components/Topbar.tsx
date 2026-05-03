@@ -9,9 +9,10 @@ interface TopbarProps {
   isAlertsOpen?: boolean;
   trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   symbol?: string;
+  connectivity?: 'HEALTHY' | 'SLUGGISH' | 'OFFLINE';
 }
 
-export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen, trend, symbol }: TopbarProps) {
+export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen, trend, symbol, connectivity }: TopbarProps) {
   return (
     <header className="h-12 sm:h-14 border-b border-brand-border flex items-center justify-between px-3 sm:px-4 shrink-0 bg-brand-bg transition-all">
       <div className="flex items-center space-x-3 sm:space-x-6">
@@ -30,8 +31,11 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
             <div className="flex items-center gap-1.5 opacity-60">
-              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo V2</span>
-              <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-brand-green animate-pulse"></div>
+              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none shrink-0">GainzAlgo V2</span>
+              <div className={cn(
+                "w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full animate-pulse",
+                connectivity === 'HEALTHY' ? "bg-brand-green" : connectivity === 'SLUGGISH' ? "bg-brand-yellow" : "bg-brand-red"
+              )}></div>
             </div>
           </div>
         </div>
@@ -42,12 +46,15 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
               <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">{symbol}/PHP</span>
               <div className="flex items-center gap-2">
                  <div className={cn(
-                    "px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter flex items-center gap-1",
-                    trend === 'BULLISH' ? "bg-brand-green/20 text-brand-green" : 
-                    trend === 'BEARISH' ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
+                    "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 border transition-all",
+                    trend === 'BULLISH' ? "bg-brand-green/10 text-brand-green border-brand-green/20" : 
+                    trend === 'BEARISH' ? "bg-brand-red/10 text-brand-red border-brand-red/20" : "bg-gray-800/50 text-gray-400 border-white/5"
                  )}>
+                    <div className={cn(
+                      "w-1.5 h-1.5 rounded-full",
+                      trend === 'BULLISH' ? "bg-brand-green animate-pulse" : trend === 'BEARISH' ? "bg-brand-red animate-pulse" : "bg-gray-600"
+                    )} />
                     {trend || 'NEUTRAL'}
-                    {trend === 'BULLISH' ? '🟢' : trend === 'BEARISH' ? '🔴' : '⚪'}
                  </div>
               </div>
            </div>
@@ -58,8 +65,18 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
         <div className="hidden sm:flex flex-col items-end">
           <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1 opacity-60">Connectivity</span>
           <div className="flex items-center space-x-2">
-            <div className="w-1.5 h-1.5 bg-brand-green rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-            <span className="text-[10px] text-brand-green font-mono font-black italic uppercase tracking-tighter">PH-01 Live</span>
+            <div className={cn(
+              "w-1.5 h-1.5 rounded-full animate-pulse",
+              connectivity === 'HEALTHY' ? "bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
+              connectivity === 'SLUGGISH' ? "bg-brand-yellow shadow-[0_0_8px_rgba(250,204,21,0.5)]" : 
+              "bg-brand-red shadow-[0_0_8px_rgba(239,68,68,0.5)]"
+            )}></div>
+            <span className={cn(
+              "text-[10px] font-mono font-black italic uppercase tracking-tighter transition-colors",
+              connectivity === 'HEALTHY' ? "text-brand-green" : connectivity === 'SLUGGISH' ? "text-brand-yellow" : "text-brand-red"
+            )}>
+              {connectivity === 'HEALTHY' ? 'PH-01 Live' : connectivity === 'SLUGGISH' ? 'Degraded' : 'Offline'}
+            </span>
           </div>
         </div>
 

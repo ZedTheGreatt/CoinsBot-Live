@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Topbar from './components/Topbar';
 import TradingChart from './components/TradingChart';
@@ -9,7 +9,7 @@ import { OHLCCandle, MarketSignal, SUPPORTED_COINS, Timeframe, PriceAlert } from
 import { generateSignals, calculateRSI } from './lib/engine';
 import { fetchKlines, fetchTicker } from './services/marketService';
 import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity } from 'lucide-react';
-import { cn } from './lib/utils';
+import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 
 export default function App() {
@@ -22,6 +22,8 @@ export default function App() {
   const [isSignalsOpen, setIsSignalsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [connectivity, setConnectivity] = useState<'HEALTHY' | 'SLUGGISH' | 'OFFLINE'>('HEALTHY');
+  const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     const saved = localStorage.getItem('coinsbot_alerts');
     return saved ? JSON.parse(saved) : [];
@@ -80,6 +82,18 @@ export default function App() {
     if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(async () => {
+      // Check health
+      fetch('/api/health')
+        .then(res => {
+          if (res.ok) {
+            setConnectivity('HEALTHY');
+            setLastUpdateTime(Date.now());
+          } else {
+            setConnectivity('OFFLINE');
+          }
+        })
+        .catch(() => setConnectivity('OFFLINE'));
+
       // Poll ticker as well
       fetchTicker(selectedSymbol + 'PHP').then(ticker => {
         if (ticker) {
@@ -94,27 +108,32 @@ export default function App() {
         }
       });
 
-      const klines = await fetchKlines(selectedSymbol + 'PHP', timeframe, 10);
+      const klines = await fetchKlines(selectedSymbol + 'PHP', timeframe, 15);
       if (klines.length > 0) {
         setData(prev => {
           if (prev.length === 0) return klines;
           
           const newCandles = [...prev];
           const lastFetched = klines[klines.length - 1];
-          
           const lastExisting = newCandles[newCandles.length - 1];
           
           if (lastExisting.time === lastFetched.time) {
             newCandles[newCandles.length - 1] = lastFetched;
           } else if (lastFetched.time > lastExisting.time) {
             newCandles.push(lastFetched);
-            if (newCandles.length > 500) newCandles.shift();
+            if (newCandles.length > 1000) newCandles.shift();
           }
+          
+          // Merge recent klines to fix any gaps
+          klines.forEach(k => {
+            const idx = newCandles.findIndex(c => c.time === k.time);
+            if (idx !== -1) newCandles[idx] = k;
+          });
           
           return [...newCandles];
         });
       }
-    }, 10000); // 10s polling
+    }, 5000); // 5s polling
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -123,7 +142,7 @@ export default function App() {
 
   // Derive Signals and RSI
   useEffect(() => {
-    if (data.length < 200) return;
+    if (data.length < 50) return;
     const s = generateSignals(data);
     setSignals(s);
     
@@ -135,8 +154,8 @@ export default function App() {
   const currentPrice = data.length > 0 ? data[data.length - 1].close : 0;
   const currentSignal = signals.length > 0 ? signals[signals.length - 1] : null;
 
-  // Calculate 24h Statistics
-  const stats24h = (() => {
+  // Calculate 24h Statistics with useMemo
+  const stats24h = useMemo(() => {
     // Prefer real-time ticker data if available
     if (tickerData) {
       return {
@@ -166,7 +185,7 @@ export default function App() {
     const turnover = range.reduce((sum, c) => sum + (c.volume * c.close), 0);
     
     return { change, percent, high, low, volume, turnover };
-  })();
+  }, [tickerData, data]);
 
   // Persist Alerts
   useEffect(() => {
@@ -224,10 +243,12 @@ export default function App() {
 
       triggeredAlerts.forEach(alert => {
         let msg = "";
+        const changeStr = format24hChange(latestPrice, stats24h.percent);
+        
         if (alert.condition === 'SIGNAL' && latestSignal) {
-           msg = `${alert.symbol} ${latestSignal.type.replace('_', ' ')} detected!`;
+           msg = `${alert.symbol} ${latestSignal.type.replace('_', ' ')} (24H: ${changeStr})`;
         } else {
-           msg = `${alert.symbol} reached ₱${alert.targetPrice?.toLocaleString()}`;
+           msg = `${alert.symbol} hit ₱${alert.targetPrice?.toLocaleString()} (24H: ${changeStr})`;
         }
 
         setActiveNotification(msg);
@@ -282,6 +303,26 @@ export default function App() {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, isActive: !a.isActive } : a));
   };
 
+  // Logic for keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT') return;
+      const shortcuts: Record<string, Timeframe> = {
+        '1': '1m',
+        '2': '5m',
+        '3': '15m',
+        '4': '1H',
+        '5': '4H',
+        '6': '1D'
+      };
+      if (shortcuts[e.key]) {
+        setTimeframe(shortcuts[e.key]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <div className="h-screen-fix bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
       <NavMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
@@ -299,6 +340,7 @@ export default function App() {
         isAlertsOpen={isAlertsOpen}
         trend={currentSignal?.trend}
         symbol={selectedSymbol}
+        connectivity={connectivity}
       />
 
       <main className="flex-1 flex overflow-hidden relative">
@@ -306,8 +348,8 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative">
           
           {/* Layer 1: Asset & Important Market Data */}
-          <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
-            <div className="shrink-0">
+          <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar scroll-smooth">
+            <div className="shrink-0 sticky left-0 z-20 bg-brand-surface pr-4 border-r border-white/5 md:border-none md:static">
               <CoinDropdown 
                 selectedSymbol={selectedSymbol}
                 onSymbolSelect={setSelectedSymbol}
@@ -315,40 +357,37 @@ export default function App() {
               />
             </div>
             
-            <div className="h-8 w-px bg-brand-border shrink-0 hidden md:block"></div>
-            
             <div className="flex items-center gap-6 sm:gap-10 shrink-0">
               {/* 24h Price & Change */}
-              <div className="flex flex-col">
+              <div className="flex flex-col border-l border-brand-border pl-6 first:border-none first:pl-0">
                 <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5 opacity-60">
                   24h Change
                 </span>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col">
-                    <span className={cn(
-                      "text-xs font-mono font-black leading-none",
-                      stats24h.change >= 0 ? "text-brand-green" : "text-brand-red"
-                    )}>
-                      {stats24h.change >= 0 ? '+' : ''}₱{Math.abs(stats24h.change).toLocaleString(undefined, { maximumFractionDigits: 1 })}
-                    </span>
-                    <span className="text-[9px] font-mono font-bold text-gray-500 mt-1">
-                      ≈ ${(Math.abs(stats24h.change) / 57.5).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className={cn(
-                    "px-2 py-1 rounded-lg border",
-                    stats24h.percent >= 0 
-                      ? "bg-brand-green/10 text-brand-green border-brand-green/20" 
-                      : "bg-brand-red/10 text-brand-red border-brand-red/20"
-                  )}>
-                    <div className="flex items-center gap-1">
-                      {stats24h.percent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      <span className="text-[10px] font-mono font-black">
-                        {stats24h.percent >= 0 ? '+' : ''}{stats24h.percent.toFixed(2)}%
-                      </span>
+                {(() => {
+                  const changeStr = format24hChange(currentPrice, stats24h.percent);
+                  const isPositive = stats24h.percent >= 0;
+                  return (
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-sm transition-all",
+                        isPositive 
+                          ? "bg-brand-green/10 text-brand-green border-brand-green/20" 
+                          : "bg-brand-red/10 text-brand-red border-brand-red/20"
+                      )}>
+                        {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        <span className="text-xs font-mono font-black tracking-tight whitespace-nowrap">
+                          {changeStr}
+                        </span>
+                      </div>
+                      <div className="hidden sm:flex flex-col ml-2">
+                        <span className="text-[8px] font-mono font-bold text-gray-500 uppercase opacity-60 whitespace-nowrap">Est. USD</span>
+                        <span className="text-[10px] font-mono font-black text-gray-400 whitespace-nowrap">
+                           ≈ ${(Math.abs(stats24h.change) / 57.5).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               {/* 24h High/Low */}
@@ -382,7 +421,11 @@ export default function App() {
                      <Activity className="w-3 h-3 text-brand-blue" />
                   </div>
                   <span className="text-[11px] font-mono font-black text-gray-200">
-                    {stats24h.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                    {stats24h.volume >= 1000000 
+                      ? `${(stats24h.volume / 1000000).toFixed(2)}M` 
+                      : stats24h.volume >= 1000 
+                        ? `${(stats24h.volume / 1000).toFixed(1)}K` 
+                        : stats24h.volume.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>

@@ -48,11 +48,16 @@ export async function fetchKlines(symbol: string, interval: Timeframe = '1m', li
 export async function fetchTicker(symbol: string) {
   const formattedSymbol = symbol.replace('/', '');
   try {
-    const response = await fetch(`/api/coins/ticker?symbol=${formattedSymbol}`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const url = `/api/coins/ticker?symbol=${formattedSymbol}`;
+    console.log(`[MarketService] Fetching ticker from ${url}`);
+    const response = await fetch(url);
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'No error body');
+      console.error(`[MarketService] Ticker API error: ${response.status} - ${errorText}`);
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
     
-    // Most exchange APIs return full 24h stats in this object
     return {
       price: parseFloat(data.lastPrice || '0'),
       priceChange: parseFloat(data.priceChange || '0'),
@@ -63,7 +68,11 @@ export async function fetchTicker(symbol: string) {
       quoteVolume: parseFloat(data.quoteVolume || '0'),
     };
   } catch (error) {
-    console.error('Error fetching Coins.ph ticker:', error);
+    if (error instanceof Error) {
+      console.error('Error fetching Coins.ph ticker:', error.message, error.stack);
+    } else {
+      console.error('Error fetching Coins.ph ticker:', error);
+    }
     return null;
   }
 }
