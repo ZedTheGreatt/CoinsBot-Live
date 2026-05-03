@@ -106,7 +106,9 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
                   const price = ticker?.price || (isActive ? currentPrice : 0);
                   const changePercent = ticker?.percent || 0;
                   const nominalChange = ticker?.change;
-                  const isPositive = changePercent >= 0;
+                  const isPositive = changePercent > 0;
+                  const isNegative = changePercent < 0;
+                  const isNeutral = !isPositive && !isNegative;
 
                   return (
                     <button
@@ -143,8 +145,10 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
                           ₱{price > 0 ? price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : '---'}
                         </span>
                         <div className={cn(
-                          "flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-black font-mono",
-                          isPositive ? "text-brand-green bg-brand-green/10" : "text-brand-red bg-brand-red/10"
+                          "flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-black font-mono transition-colors",
+                          isNeutral 
+                            ? "text-gray-500 bg-gray-800/50" 
+                            : isPositive ? "text-brand-green bg-brand-green/10" : "text-brand-red bg-brand-red/10"
                         )}>
                           {isPositive ? '+' : ''}{(changePercent * 100).toFixed(2)}%
                         </div>

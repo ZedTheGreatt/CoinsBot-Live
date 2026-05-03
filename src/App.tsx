@@ -381,16 +381,21 @@ export default function App() {
                 </span>
                 {(() => {
                   const changeStr = format24hChange(currentPrice, stats24h.percent, stats24h.change);
-                  const isPositive = stats24h.percent >= 0;
+                  const isPositive = stats24h.percent > 0;
+                  const isNegative = stats24h.percent < 0;
+                  const isNeutral = !isPositive && !isNegative;
+
                   return (
                     <div className="flex items-center gap-2">
                       <div className={cn(
                         "flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-sm transition-all",
-                        isPositive 
-                          ? "bg-brand-green/10 text-brand-green border-brand-green/20" 
-                          : "bg-brand-red/10 text-brand-red border-brand-red/20"
+                        isNeutral
+                          ? "bg-gray-800/50 text-gray-400 border-white/5"
+                          : isPositive 
+                            ? "bg-brand-green/10 text-brand-green border-brand-green/20" 
+                            : "bg-brand-red/10 text-brand-red border-brand-red/20"
                       )}>
-                        {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                        {isPositive ? <TrendingUp className="w-4 h-4" /> : isNegative ? <TrendingDown className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
                         <span className="text-xs font-mono font-black tracking-tight whitespace-nowrap">
                           {changeStr}
                         </span>
