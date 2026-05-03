@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Topbar from './components/Topbar';
-import Sidebar from './components/Sidebar';
 import TradingChart from './components/TradingChart';
 import SignalCard from './components/SignalCard';
+import CoinDropdown from './components/CoinDropdown';
+import NavMenu from './components/NavMenu';
 import { OHLCCandle, MarketSignal, SUPPORTED_COINS, Timeframe, PriceAlert } from './types';
 import { generateSignals, calculateRSI } from './lib/engine';
-import { fetchKlines } from './services/marketService';
-import { LayoutGrid, TrendingUp, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X } from 'lucide-react';
+import { fetchKlines, fetchTicker } from './services/marketService';
+import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity } from 'lucide-react';
 import { cn } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 
@@ -17,7 +18,7 @@ export default function App() {
   const [data, setData] = useState<OHLCCandle[]>([]);
   const [signals, setSignals] = useState<MarketSignal[]>([]);
   const [lastRsi, setLastRsi] = useState(50);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSignalsOpen, setIsSignalsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +27,14 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
+  const [tickerData, setTickerData] = useState<{
+    priceChange: number;
+    priceChangePercent: number;
+    high: number;
+    low: number;
+    volume: number;
+    quoteVolume: number;
+  } | null>(null);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -45,6 +54,20 @@ export default function App() {
     if (klines.length > 0) {
       setData(klines);
     }
+    
+    // Also fetch ticker whenever symbol changes
+    const ticker = await fetchTicker(selectedSymbol + 'PHP');
+    if (ticker) {
+      setTickerData({
+        priceChange: ticker.priceChange,
+        priceChangePercent: ticker.priceChangePercent,
+        high: ticker.high,
+        low: ticker.low,
+        volume: ticker.volume,
+        quoteVolume: ticker.quoteVolume
+      });
+    }
+    
     setIsLoading(false);
   };
 
@@ -57,6 +80,20 @@ export default function App() {
     if (timerRef.current) clearInterval(timerRef.current);
 
     timerRef.current = setInterval(async () => {
+      // Poll ticker as well
+      fetchTicker(selectedSymbol + 'PHP').then(ticker => {
+        if (ticker) {
+          setTickerData({
+            priceChange: ticker.priceChange,
+            priceChangePercent: ticker.priceChangePercent,
+            high: ticker.high,
+            low: ticker.low,
+            volume: ticker.volume,
+            quoteVolume: ticker.quoteVolume
+          });
+        }
+      });
+
       const klines = await fetchKlines(selectedSymbol + 'PHP', timeframe, 10);
       if (klines.length > 0) {
         setData(prev => {
@@ -65,8 +102,6 @@ export default function App() {
           const newCandles = [...prev];
           const lastFetched = klines[klines.length - 1];
           
-          // If the last candle in our data has the same timestamp as the latest fetched, update it
-          // Otherwise, if it's new, append (or slide)
           const lastExisting = newCandles[newCandles.length - 1];
           
           if (lastExisting.time === lastFetched.time) {
@@ -100,6 +135,39 @@ export default function App() {
   const currentPrice = data.length > 0 ? data[data.length - 1].close : 0;
   const currentSignal = signals.length > 0 ? signals[signals.length - 1] : null;
 
+  // Calculate 24h Statistics
+  const stats24h = (() => {
+    // Prefer real-time ticker data if available
+    if (tickerData) {
+      return {
+        change: tickerData.priceChange,
+        percent: tickerData.priceChangePercent,
+        high: tickerData.high,
+        low: tickerData.low,
+        volume: tickerData.volume,
+        turnover: tickerData.quoteVolume
+      };
+    }
+
+    if (data.length === 0) return { change: 0, percent: 0, high: 0, low: 0, volume: 0, turnover: 0 };
+    const last = data[data.length - 1];
+    const dayAgo = last.time - 86400;
+    const startIndex = data.findIndex(d => d.time >= dayAgo);
+    const range = data.slice(startIndex === -1 ? 0 : startIndex);
+    
+    if (range.length === 0) return { change: 0, percent: 0, high: 0, low: 0, volume: 0, turnover: 0 };
+    
+    const initialPrice = range[0].open;
+    const change = last.close - initialPrice;
+    const percent = (change / initialPrice) * 100;
+    const high = Math.max(...range.map(c => c.high));
+    const low = Math.min(...range.map(c => c.low));
+    const volume = range.reduce((sum, c) => sum + c.volume, 0);
+    const turnover = range.reduce((sum, c) => sum + (c.volume * c.close), 0);
+    
+    return { change, percent, high, low, volume, turnover };
+  })();
+
   // Persist Alerts
   useEffect(() => {
     localStorage.setItem('coinsbot_alerts', JSON.stringify(alerts));
@@ -116,24 +184,20 @@ export default function App() {
     alerts.forEach(alert => {
       if (!alert.isActive || alert.symbol !== selectedSymbol) return;
 
-      // Price Crossing Alerts
       if (alert.condition === 'ABOVE' && alert.targetPrice && latestPrice >= alert.targetPrice) {
         triggeredAlerts.push(alert);
       } else if (alert.condition === 'BELOW' && alert.targetPrice && latestPrice <= alert.targetPrice) {
         triggeredAlerts.push(alert);
       } 
-      // Signal Intelligence Alerts
       else if (alert.condition === 'SIGNAL' && latestSignal) {
         const currentCandleTime = data[data.length - 1].time;
         if (latestSignal.time === currentCandleTime) {
-          // Check if we haven't already notified for this exact signal time to avoid spam
           triggeredAlerts.push(alert);
         }
       }
     });
 
     if (triggeredAlerts.length > 0) {
-      // Play Notification Sound safely
       try {
         const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
         if (AudioContextClass) {
@@ -166,10 +230,8 @@ export default function App() {
            msg = `${alert.symbol} reached ₱${alert.targetPrice?.toLocaleString()}`;
         }
 
-        // Trigger UI Notification
         setActiveNotification(msg);
         
-        // Browser Notification (Safe Guard)
         try {
           if ("Notification" in window && Notification.permission === "granted") {
             new Notification(`CoinsBot Alert: ${alert.symbol}`, {
@@ -182,8 +244,6 @@ export default function App() {
         }
       });
 
-      // Update state: Disable one-shot price alerts, but keep Signal alerts active 
-      // to avoid infinite loops, we only update if we actually have one-shot alerts
       const hasOneShot = triggeredAlerts.some(ta => ta.condition !== 'SIGNAL');
       if (hasOneShot) {
         setAlerts(prev => prev.map(a => {
@@ -195,7 +255,6 @@ export default function App() {
         }));
       }
 
-      // Clear toast after 5s
       const toastTimer = setTimeout(() => setActiveNotification(null), 5000);
       return () => clearTimeout(toastTimer);
     }
@@ -210,7 +269,6 @@ export default function App() {
     };
     setAlerts(prev => [alert, ...prev]);
     
-    // Request notification permission
     if ("Notification" in window && Notification.permission === "default") {
       Notification.requestPermission();
     }
@@ -226,8 +284,9 @@ export default function App() {
 
   return (
     <div className="h-screen-fix bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
+      <NavMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <Topbar 
-        onMenuClick={() => setIsSidebarOpen(true)} 
+        onMenuClick={() => setIsMenuOpen(true)} 
         onSignalsClick={() => {
           setIsSignalsOpen(!isSignalsOpen);
           setIsAlertsOpen(false);
@@ -243,58 +302,125 @@ export default function App() {
       />
 
       <main className="flex-1 flex overflow-hidden relative">
-        {/* Responsive Sidebar (Coin Selector) */}
-        <div className={cn(
-          "fixed inset-0 z-50 lg:static lg:block transition-all duration-300 transform lg:transform-none",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}>
-          {/* Overlay for mobile */}
-          {isSidebarOpen && (
-            <div 
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm lg:hidden"
-              onClick={() => setIsSidebarOpen(false)}
-            />
-          )}
-          <div className="relative w-72 h-full shadow-2xl lg:shadow-none bg-brand-bg">
-            <Sidebar 
-              selectedSymbol={selectedSymbol} 
-              onSymbolSelect={(s) => {
-                setSelectedSymbol(s);
-                setIsSidebarOpen(false);
-              }}
-              currentPrice={currentPrice}
-              isLoading={isLoading}
-            />
-          </div>
-        </div>
-
         {/* Center Section: Chart and Market Stats */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative">
           
-          {/* Chart Toolbar */}
-          <div className="h-10 border-b border-brand-border flex items-center px-4 gap-4 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
+          {/* Layer 1: Asset & Important Market Data */}
+          <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar">
+            <div className="shrink-0">
+              <CoinDropdown 
+                selectedSymbol={selectedSymbol}
+                onSymbolSelect={setSelectedSymbol}
+                currentPrice={currentPrice}
+              />
+            </div>
+            
+            <div className="h-8 w-px bg-brand-border shrink-0 hidden md:block"></div>
+            
+            <div className="flex items-center gap-6 sm:gap-10 shrink-0">
+              {/* 24h Price & Change */}
+              <div className="flex flex-col">
+                <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5 opacity-60">
+                  24h Change
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col">
+                    <span className={cn(
+                      "text-xs font-mono font-black leading-none",
+                      stats24h.change >= 0 ? "text-brand-green" : "text-brand-red"
+                    )}>
+                      {stats24h.change >= 0 ? '+' : ''}₱{Math.abs(stats24h.change).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                    </span>
+                    <span className="text-[9px] font-mono font-bold text-gray-500 mt-1">
+                      ≈ ${(Math.abs(stats24h.change) / 57.5).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className={cn(
+                    "px-2 py-1 rounded-lg border",
+                    stats24h.percent >= 0 
+                      ? "bg-brand-green/10 text-brand-green border-brand-green/20" 
+                      : "bg-brand-red/10 text-brand-red border-brand-red/20"
+                  )}>
+                    <div className="flex items-center gap-1">
+                      {stats24h.percent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      <span className="text-[10px] font-mono font-black">
+                        {stats24h.percent >= 0 ? '+' : ''}{stats24h.percent.toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 24h High/Low */}
+              <div className="hidden sm:flex flex-col">
+                <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5 opacity-60">
+                  24h High / Low
+                </span>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-3 bg-brand-green/30 rounded-full"></div>
+                    <span className="text-[10px] font-mono font-black text-gray-100">
+                      ₱{stats24h.high.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-3 bg-brand-red/30 rounded-full"></div>
+                    <span className="text-[10px] font-mono font-black text-gray-400">
+                      ₱{stats24h.low.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 24h Volume */}
+              <div className="hidden lg:flex flex-col border-l border-brand-border pl-8">
+                <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-2 opacity-60">
+                  24h Volume ({selectedSymbol})
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-white/5 rounded">
+                     <Activity className="w-3 h-3 text-brand-blue" />
+                  </div>
+                  <span className="text-[11px] font-mono font-black text-gray-200">
+                    {stats24h.volume.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* 24h Turnover */}
+              <div className="hidden xl:flex flex-col border-l border-brand-border pl-8">
+                <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-2 opacity-60">
+                  24h Turnover (PHP)
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-white/5 rounded text-brand-yellow">
+                     ₱
+                  </div>
+                  <span className="text-[11px] font-mono font-black text-gray-200">
+                    {stats24h.turnover.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Layer 2: Time Interval Menu */}
+          <div className="h-10 border-b border-brand-border flex items-center px-4 shrink-0 bg-brand-surface/40 overflow-x-auto no-scrollbar">
             <div className="flex items-center space-x-1 shrink-0">
               {(['1m', '5m', '15m', '1H', '4H', '1D'] as Timeframe[]).map((tf) => (
                 <button
                   key={tf}
                   onClick={() => setTimeframe(tf)}
                   className={cn(
-                    "px-3 py-1.5 sm:px-2.5 sm:py-1 text-[10px] font-black uppercase tracking-tight transition-all rounded outline-none whitespace-nowrap",
-                    timeframe === tf ? "text-brand-green bg-gray-800" : "text-gray-400 hover:text-white"
+                    "px-3.5 py-1 text-[10px] sm:text-[11px] font-black uppercase tracking-tight transition-all rounded-lg outline-none whitespace-nowrap",
+                    timeframe === tf 
+                      ? "text-brand-green bg-brand-green/10 shadow-[inset_0_0_8px_rgba(16,185,129,0.1)] border border-brand-green/20" 
+                      : "text-gray-500 hover:text-white hover:bg-white/5"
                   )}
                 >
                   {tf}
                 </button>
               ))}
-            </div>
-            <div className="w-px h-4 bg-gray-700 shrink-0 hidden sm:block"></div>
-            <div className="hidden sm:flex items-center space-x-6 shrink-0">
-              <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest leading-none">
-                EMA(50): <span className="text-brand-blue tabular-nums ml-1">₱{(currentPrice * 0.99).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              </span>
-              <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest leading-none">
-                EMA(200): <span className="text-brand-yellow tabular-nums ml-1">₱{(currentPrice * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-              </span>
             </div>
           </div>
 
@@ -325,7 +451,6 @@ export default function App() {
             <AnimatePresence>
               {(isSignalsOpen || isAlertsOpen) && (
                 <>
-                  {/* Backdrop for mobile */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -337,7 +462,6 @@ export default function App() {
                     className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 lg:hidden"
                   />
                   
-                  {/* The Panel */}
                   <motion.aside 
                     initial={{ x: '100%' }}
                     animate={{ x: 0 }}
@@ -363,7 +487,6 @@ export default function App() {
                         <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
                           <SignalCard signal={currentSignal} rsi={lastRsi} />
 
-                          {/* Technical Levels */}
                           <div className="space-y-4 shrink-0">
                             <div className="flex items-center justify-between">
                               <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Technical Thresholds</h4>
@@ -420,7 +543,6 @@ export default function App() {
               )}
             </AnimatePresence>
 
-            {/* Price Alert Toast */}
             <AnimatePresence>
               {activeNotification && (
                 <motion.div

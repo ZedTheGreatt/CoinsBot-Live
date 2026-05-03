@@ -51,9 +51,16 @@ export async function fetchTicker(symbol: string) {
     const response = await fetch(`/api/coins/ticker?symbol=${formattedSymbol}`);
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
+    
+    // Most exchange APIs return full 24h stats in this object
     return {
-      price: parseFloat(data.lastPrice),
-      change: parseFloat(data.priceChangePercent)
+      price: parseFloat(data.lastPrice || '0'),
+      priceChange: parseFloat(data.priceChange || '0'),
+      priceChangePercent: parseFloat(data.priceChangePercent || '0'),
+      high: parseFloat(data.highPrice || '0'),
+      low: parseFloat(data.lowPrice || '0'),
+      volume: parseFloat(data.volume || '0'),
+      quoteVolume: parseFloat(data.quoteVolume || '0'),
     };
   } catch (error) {
     console.error('Error fetching Coins.ph ticker:', error);

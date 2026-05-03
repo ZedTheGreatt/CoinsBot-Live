@@ -17,9 +17,9 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
       <div className="flex items-center space-x-3 sm:space-x-6">
         <button 
           onClick={onMenuClick}
-          className="lg:hidden p-1.5 sm:p-2 hover:bg-brand-surface rounded-lg text-gray-400 transition-colors"
+          className="group p-2 hover:bg-brand-surface rounded-xl text-gray-400 transition-all border border-transparent hover:border-brand-border active:scale-95"
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5 group-hover:text-white" />
         </button>
         <div className="flex items-center space-x-2">
           <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-brand-green to-brand-blue rounded-lg flex items-center justify-center shrink-0">
@@ -29,7 +29,7 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
             <span className="text-base sm:text-lg font-black italic tracking-tighter text-white whitespace-nowrap">
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 opacity-60">
               <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none">GainzAlgo V2</span>
               <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-brand-green animate-pulse"></div>
             </div>
@@ -39,88 +39,64 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
         {/* Trend Indicator */}
         <div className="hidden lg:flex items-center gap-4 border-l border-brand-border pl-6 ml-2">
            <div className="flex flex-col">
-              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">{symbol}/PIHP</span>
+              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest leading-none mb-1">{symbol}/PHP</span>
               <div className="flex items-center gap-2">
                  <div className={cn(
                     "px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-tighter flex items-center gap-1",
                     trend === 'BULLISH' ? "bg-brand-green/20 text-brand-green" : 
                     trend === 'BEARISH' ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
                  )}>
-                    Trend: {trend || 'NEUTRAL'}
+                    {trend || 'NEUTRAL'}
                     {trend === 'BULLISH' ? '🟢' : trend === 'BEARISH' ? '🔴' : '⚪'}
                  </div>
               </div>
            </div>
         </div>
-
-        <nav className="hidden xl:flex items-center space-x-4 text-sm font-medium text-gray-400">
-          <span className="px-2 py-1 bg-gray-800 text-white rounded cursor-default">Market</span>
-          <span className="px-2 py-1 hover:text-white cursor-pointer transition-colors">Portfolio</span>
-          <button 
-            onClick={onSignalsClick}
-            className={cn(
-              "px-2 py-1 hover:text-brand-green cursor-pointer transition-colors flex items-center gap-1.5",
-              isSignalsOpen ? "text-brand-green font-bold" : ""
-            )}
-          >
-            Signals
-            <Zap className={cn("w-3 h-3", isSignalsOpen ? "fill-brand-green" : "")} />
-          </button>
-          <button 
-            onClick={onAlertsClick}
-            className={cn(
-              "px-2 py-1 hover:text-brand-yellow cursor-pointer transition-colors flex items-center gap-1.5",
-              isAlertsOpen ? "text-brand-yellow font-bold" : ""
-            )}
-          >
-            Alerts
-            <Bell className={cn("w-3 h-3", isAlertsOpen ? "fill-brand-yellow" : "")} />
-          </button>
-        </nav>
       </div>
       
       <div className="flex items-center space-x-3 sm:space-x-6">
-        <div className="flex items-center md:hidden gap-2">
-          <button 
-            onClick={onSignalsClick}
-            className={cn(
-              "p-2 rounded-lg transition-all flex items-center justify-center",
-              isSignalsOpen 
-                ? "bg-brand-green text-black" 
-                : "bg-brand-surface text-gray-400 hover:text-white border border-brand-border"
-            )}
-          >
-            <Zap className="w-4 h-4 fill-current" />
-          </button>
-          <button 
-            onClick={onAlertsClick}
-            className={cn(
-              "p-2 rounded-lg transition-all flex items-center justify-center",
-              isAlertsOpen 
-                ? "bg-brand-yellow text-black" 
-                : "bg-brand-surface text-gray-400 hover:text-white border border-brand-border"
-            )}
-          >
-            <Bell className="w-4 h-4 fill-current" />
-          </button>
-        </div>
-
         <div className="hidden sm:flex flex-col items-end">
-          <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1">Market Connectivity</span>
+          <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1 opacity-60">Connectivity</span>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-brand-green rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-            <span className="text-[10px] text-brand-green font-mono font-black italic">PH-RE-01 LIVE</span>
+            <div className="w-1.5 h-1.5 bg-brand-green rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+            <span className="text-[10px] text-brand-green font-mono font-black italic uppercase tracking-tighter">PH-01 Live</span>
           </div>
         </div>
+
         <div className="h-8 w-px bg-brand-border hidden sm:block"></div>
-        <div className="flex items-center space-x-2">
-           <button className="p-2 text-gray-400 hover:text-white transition-colors relative">
-             <Bell className="w-4 h-4" />
-             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-brand-green rounded-full"></span>
+
+        <div className="flex items-center gap-1.5 sm:gap-2">
+           <button 
+             onClick={onSignalsClick}
+             title="Signals"
+             className={cn(
+               "p-2 sm:p-2.5 rounded-xl transition-all relative group active:scale-95",
+               isSignalsOpen 
+                ? "bg-brand-green text-black" 
+                : "bg-brand-surface text-gray-400 hover:text-brand-green border border-brand-border hover:border-brand-green/30"
+             )}
+           >
+             <Zap className={cn("w-4 h-4", isSignalsOpen ? "fill-current" : "")} />
            </button>
-           <div className="w-8 h-8 rounded-full bg-gray-700 border border-gray-600 flex items-center justify-center cursor-pointer hover:bg-gray-600 transition-colors">
-             <User className="w-4 h-4 text-white" />
-           </div>
+
+           <button 
+             onClick={onAlertsClick}
+             title="Alerts"
+             className={cn(
+               "p-2 sm:p-2.5 rounded-xl transition-all relative group active:scale-95",
+               isAlertsOpen 
+                ? "bg-brand-yellow text-black shadow-[0_0_15px_rgba(250,204,21,0.3)]" 
+                : "bg-brand-surface text-gray-400 hover:text-brand-yellow border border-brand-border hover:border-brand-yellow/30"
+             )}
+           >
+             <Bell className={cn("w-4 h-4", isAlertsOpen ? "fill-current" : "")} />
+             {isAlertsOpen && (
+               <span className="absolute -top-1 -right-1 w-2 h-2 bg-white rounded-full border-2 border-brand-yellow animate-pulse"></span>
+             )}
+             {!isAlertsOpen && (
+               <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-brand-yellow rounded-full"></span>
+             )}
+           </button>
         </div>
       </div>
     </header>

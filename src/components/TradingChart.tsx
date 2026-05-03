@@ -52,6 +52,9 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
         timeFormatter: (time: number) => {
           return formatInPHT(time * 1000, { showDate: true, showSeconds: true });
         },
+        priceFormatter: (price: number) => {
+          return price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
       },
       rightPriceScale: {
         borderColor: '#1E2329',
@@ -103,14 +106,14 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
       color: '#60A5FA',
       lineWidth: 2,
       priceLineVisible: false,
-      lastValueVisible: false,
+      lastValueVisible: true,
     });
 
     const ema200Series = chart.addSeries(LineSeries, {
       color: '#FACC15',
       lineWidth: 2,
       priceLineVisible: false,
-      lastValueVisible: false,
+      lastValueVisible: true,
     });
 
     const handleCrosshairMove = (param: MouseEventParams) => {
