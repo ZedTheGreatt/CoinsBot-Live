@@ -29,7 +29,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
-  const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number }>>({});
+  const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number, change: number }>>({});
   const [tickerData, setTickerData] = useState<{
     priceChange: number;
     priceChangePercent: number;
@@ -112,9 +112,9 @@ export default function App() {
       // Poll all tickers for the dropdown
       fetchAllTickers().then(tickers => {
         if (tickers && tickers.length > 0) {
-          const map: Record<string, { price: number, percent: number }> = {};
+          const map: Record<string, { price: number, percent: number, change: number }> = {};
           tickers.forEach((t: any) => {
-            map[t.symbol] = { price: t.price, percent: t.priceChangePercent };
+            map[t.symbol] = { price: t.price, percent: t.priceChangePercent, change: t.priceChange };
           });
           setAllTickers(map);
         }
@@ -184,13 +184,16 @@ export default function App() {
     const last = data[data.length - 1];
     const dayAgo = last.time - 86400;
     const startIndex = data.findIndex(d => d.time >= dayAgo);
+    
+    // If we have less than say 4 hours of data, the "24h" calculation is misleading
+    // But we'll use what we have and maybe flag it eventually. 
     const range = data.slice(startIndex === -1 ? 0 : startIndex);
     
-    if (range.length === 0) return { change: 0, percent: 0, high: 0, low: 0, volume: 0, turnover: 0 };
+    if (range.length < 2) return { change: 0, percent: 0, high: last.high, low: last.low, volume: last.volume, turnover: last.volume * last.close };
     
     const initialPrice = range[0].open;
     const change = last.close - initialPrice;
-    const percent = (change / initialPrice) * 100;
+    const percent = initialPrice !== 0 ? (change / initialPrice) : 0;
     const high = Math.max(...range.map(c => c.high));
     const low = Math.min(...range.map(c => c.low));
     const volume = range.reduce((sum, c) => sum + c.volume, 0);
@@ -377,7 +380,7 @@ export default function App() {
                   24h Change
                 </span>
                 {(() => {
-                  const changeStr = format24hChange(currentPrice, stats24h.percent);
+                  const changeStr = format24hChange(currentPrice, stats24h.percent, stats24h.change);
                   const isPositive = stats24h.percent >= 0;
                   return (
                     <div className="flex items-center gap-2">
@@ -412,13 +415,13 @@ export default function App() {
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-3 bg-brand-green/30 rounded-full"></div>
                     <span className="text-[10px] font-mono font-black text-gray-100">
-                      ₱{stats24h.high.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                      ₱{stats24h.high.toLocaleString(undefined, { minimumFractionDigits: stats24h.high < 10 ? 4 : 2, maximumFractionDigits: stats24h.high < 10 ? 4 : 2 })}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-1 h-3 bg-brand-red/30 rounded-full"></div>
                     <span className="text-[10px] font-mono font-black text-gray-400">
-                      ₱{stats24h.low.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                      ₱{stats24h.low.toLocaleString(undefined, { minimumFractionDigits: stats24h.low < 10 ? 4 : 2, maximumFractionDigits: stats24h.low < 10 ? 4 : 2 })}
                     </span>
                   </div>
                 </div>

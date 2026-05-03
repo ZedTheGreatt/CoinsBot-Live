@@ -8,7 +8,7 @@ interface CoinDropdownProps {
   selectedSymbol: string;
   onSymbolSelect: (symbol: string) => void;
   currentPrice: number;
-  allTickers?: Record<string, { price: number, percent: number }>;
+  allTickers?: Record<string, { price: number, percent: number, change: number }>;
 }
 
 export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPrice, allTickers = {} }: CoinDropdownProps) {
@@ -104,8 +104,9 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
                   const isActive = coin.symbol === selectedSymbol;
                   const ticker = allTickers[coin.symbol + 'PHP'];
                   const price = ticker?.price || (isActive ? currentPrice : 0);
-                  const change = ticker?.percent || 0;
-                  const isPositive = change >= 0;
+                  const changePercent = ticker?.percent || 0;
+                  const nominalChange = ticker?.change;
+                  const isPositive = changePercent >= 0;
 
                   return (
                     <button
@@ -145,7 +146,7 @@ export default function CoinDropdown({ selectedSymbol, onSymbolSelect, currentPr
                           "flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[10px] font-black font-mono",
                           isPositive ? "text-brand-green bg-brand-green/10" : "text-brand-red bg-brand-red/10"
                         )}>
-                          {isPositive ? '+' : ''}{change.toFixed(2)}%
+                          {isPositive ? '+' : ''}{(changePercent * 100).toFixed(2)}%
                         </div>
                       </div>
                     </button>

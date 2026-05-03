@@ -28,21 +28,16 @@ export function formatInPHT(timestamp: number, options: { showDate?: boolean, sh
   return new Intl.DateTimeFormat('en-PH', dateOptions).format(new Date(timestamp));
 }
 
-export function format24hChange(pricePHP: any, changePercent: any): string {
+export function format24hChange(pricePHP: any, changePercent: any, nominalChange?: number): string {
   const current = Number(String(pricePHP).replace(/,/g, ''));
-  const pct = Number(changePercent) / 100; // Dividing by 100 as changePercent is passed as a percentage (e.g. 2.41)
+  const pct = Number(changePercent);
 
   if (!Number.isFinite(current) || !Number.isFinite(pct)) {
     return 'N/A';
   }
 
-  const denominator = 1 + pct;
-  if (denominator <= 0) {
-    return 'N/A';
-  }
-
-  const previous = current / denominator;
-  const pesoChange = current - previous;
+  // Use actual nominal change if provided, otherwise fallback to formula
+  const pesoChange = typeof nominalChange === 'number' ? nominalChange : (current - (current / (1 + pct)));
 
   const absPeso = Math.abs(pesoChange);
   const absPct = Math.abs(pct * 100);
@@ -51,10 +46,13 @@ export function format24hChange(pricePHP: any, changePercent: any): string {
   if (pesoChange > 0) sign = '+';
   else if (pesoChange < 0) sign = '-';
 
+  // Set precision to exactly 2 decimal points
+  const pctPrecision = 2;
+
   const formattedPeso = absPeso.toLocaleString('en-PH', { 
-    minimumFractionDigits: 1, 
-    maximumFractionDigits: 1 
+    minimumFractionDigits: absPeso < 1 && absPeso > 0 ? 4 : 2, 
+    maximumFractionDigits: absPeso < 1 && absPeso > 0 ? 4 : 2 
   });
 
-  return `₱${sign}${formattedPeso} (${sign}${absPct.toFixed(2)}%)`;
+  return `₱${sign}${formattedPeso} (${sign}${absPct.toFixed(pctPrecision)}%)`;
 }

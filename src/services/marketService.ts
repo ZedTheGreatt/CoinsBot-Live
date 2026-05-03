@@ -89,6 +89,7 @@ export async function fetchAllTickers() {
     return data.map((item: any) => ({
       symbol: item.symbol,
       price: parseFloat(item.lastPrice || '0'),
+      priceChange: parseFloat(item.priceChange || '0'),
       priceChangePercent: parseFloat(item.priceChangePercent || '0'),
     }));
   } catch (error) {
