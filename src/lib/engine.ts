@@ -162,17 +162,18 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
       const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge || bullishAlignment);
       const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge || bearishAlignment);
 
-      // Hyper-Reactive RSI limits
-      const buyRsiLimit = adxVal > 25 ? 75 : 65;
-      const sellRsiLimit = adxVal > 25 ? 25 : 35;
+      // Hyper-Reactive RSI limits - balanced for visibility
+      const buyRsiLimit = adxVal > 25 ? 70 : 60;
+      const sellRsiLimit = adxVal > 25 ? 30 : 40;
 
       if (trendBias === 'BULLISH' && rsiVal < buyRsiLimit && confirmedUp) {
-        if (i - lastConfirmedIndex >= 1 || lastConfirmedDir !== 'BUY') {
-          type = rsiVal < 45 ? 'STRONG_BUY' : 'BUY';
+        // Reduced frequency: only signal every 5 candles min, or if signal type flips
+        if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'BUY') {
+          type = rsiVal < 40 ? 'STRONG_BUY' : 'BUY';
         }
       } else if (trendBias === 'BEARISH' && rsiVal > sellRsiLimit && confirmedDown) {
-        if (i - lastConfirmedIndex >= 1 || lastConfirmedDir !== 'SELL') {
-          type = rsiVal > 55 ? 'STRONG_SELL' : 'SELL';
+        if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'SELL') {
+          type = rsiVal > 60 ? 'STRONG_SELL' : 'SELL';
         }
       } else {
         type = 'NEUTRAL';
