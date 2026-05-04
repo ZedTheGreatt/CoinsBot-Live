@@ -16,7 +16,7 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
 
   try {
     const recentData = candles.slice(-50).map(c => ({
-      t: new Date(c.time as number * 1000).toISOString(),
+      t: new Date((c.time as number) * 1000).toISOString(),
       o: c.open,
       h: c.high,
       l: c.low,
@@ -34,10 +34,10 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
           type: Type.OBJECT,
           required: ["score", "label", "summary", "keyFactors", "riskLevel"],
           properties: {
-            score: { type: Type.NUMBER, description: "Sentiment score -100 to 100" },
+            score: { type: Type.NUMBER, description: "Sentiment score -100 (Extremely Bearish) to 100 (Extremely Bullish)" },
             label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
-            summary: { type: Type.STRING },
-            keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
+            summary: { type: Type.STRING, description: "1-2 sentence summary" },
+            keyFactors: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Top 3 technical reasons" },
             riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
           }
         }
@@ -45,11 +45,12 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
     });
 
     if (response.text) {
-      return JSON.parse(response.text.trim());
+      const data = JSON.parse(response.text.trim());
+      return data;
     }
     return null;
   } catch (error) {
-    console.error("[GeminiService] Sentiment Analysis Error:", error);
+    console.error("[NeuralPulse] AI Error:", error);
     return null;
   }
 }

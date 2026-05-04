@@ -11,6 +11,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(express.json());
+
   // Helper for HTTPS requests
   const httpsRequest = (url: string): Promise<any> => {
     return new Promise((resolve, reject) => {
