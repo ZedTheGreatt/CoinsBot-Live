@@ -1,4 +1,4 @@
-import { Bell, Search, Settings, User, Activity, Menu, Zap, Rocket } from 'lucide-react';
+import { Bell, Search, Settings, User, Activity, Menu, Zap, Rocket, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface TopbarProps {
@@ -6,15 +6,30 @@ interface TopbarProps {
   onSignalsClick?: () => void;
   onAlertsClick?: () => void;
   onRoadmapClick?: () => void;
+  onRefresh?: () => void;
   isSignalsOpen?: boolean;
   isAlertsOpen?: boolean;
   isRoadmapOpen?: boolean;
   trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   symbol?: string;
   connectivity?: 'HEALTHY' | 'SLUGGISH' | 'OFFLINE';
+  isRefreshing?: boolean;
 }
 
-export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, onRoadmapClick, isSignalsOpen, isAlertsOpen, isRoadmapOpen, trend, symbol, connectivity }: TopbarProps) {
+export default function Topbar({ 
+  onMenuClick, 
+  onSignalsClick, 
+  onAlertsClick, 
+  onRoadmapClick, 
+  onRefresh,
+  isSignalsOpen, 
+  isAlertsOpen, 
+  isRoadmapOpen, 
+  trend, 
+  symbol, 
+  connectivity,
+  isRefreshing 
+}: TopbarProps) {
   return (
     <header className="h-12 sm:h-14 border-b border-brand-border flex items-center justify-between px-3 sm:px-4 shrink-0 bg-brand-bg transition-all">
       <div className="flex items-center space-x-3 sm:space-x-6">
@@ -67,6 +82,17 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, onR
         <div className="hidden sm:flex flex-col items-end">
           <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1 opacity-60">Connectivity</span>
           <div className="flex items-center space-x-2">
+            <button 
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "p-1 hover:bg-white/5 rounded-md text-gray-500 hover:text-white transition-all transition-duration-500",
+                isRefreshing && "animate-spin text-brand-green"
+              )}
+              title="Manual Sync"
+            >
+              <RefreshCw className="w-3 h-3" />
+            </button>
             <div className={cn(
               "w-1.5 h-1.5 rounded-full animate-pulse",
               connectivity === 'HEALTHY' ? "bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 

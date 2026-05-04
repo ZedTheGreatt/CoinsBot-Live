@@ -8,41 +8,132 @@ interface RoadmapPanelProps {
 
 const ROADMAP = [
   {
+    version: 'v1',
+    title: 'Genesis Engine',
+    status: 'COMPLETED',
+    date: '2025',
+    features: [
+      'Basic OHLC Visualization',
+      'SMA/EMA Overlay Support',
+      'Stateless Signal Logic',
+      'Manual Asset Selection'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v2',
+    title: 'Regime Architecture',
+    status: 'COMPLETED',
+    date: '2025',
+    features: [
+      '3-Layer Decision Logic',
+      'Range vs Trend Detection',
+      'Volume Histogram Peaks',
+      'Mobile-Responsive UI'
+    ],
+    highlight: false
+  },
+  {
     version: 'v3',
     title: 'Momentum & Flow',
     status: 'COMPLETED',
-    date: 'Current',
+    date: 'Q1 2026',
     features: [
-      'Volume Profile Integration',
-      'ADX Trend Strength Filtering',
-      'Dynamic ATR Stop Losses',
-      'Live Order Book Sync'
+      'ADX Trend Strength Filter',
+      'Vol Surge Momentum Gate',
+      'ATR Dynamic Stop Losses',
+      'Fib-Based Profit Targets'
     ],
     highlight: false
   },
   {
     version: 'v4',
-    title: 'Neural Pulse Integration',
+    title: 'Neural Pulse Alpha',
     status: 'LIVE',
-    date: 'Q3 2026',
+    date: 'Current',
     features: [
       'Gemini AI Sentiment Overlay',
-      'Liquidity Heatmap Mapping',
-      'Custom Bot Scripting (JS)',
-      'Automated Coins.ph Execution'
+      'Neural Bias Score (-100/100)',
+      'Neural Risk Mitigation',
+      'Logic Highlight Explainer'
     ],
     highlight: true
   },
   {
     version: 'v5',
-    title: 'DeFi Bridge Expansion',
+    title: 'DeFi Bridge',
     status: 'UP NEXT',
+    date: 'Q3 2026',
+    features: [
+      'Direct Coins.ph Integration',
+      'DEX Liquidity Heatmaps',
+      'Arbitrage Opportunity Alerts',
+      'Multi-Wallet Performance'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v6',
+    title: 'Flash Node',
+    status: 'PLANNED',
+    date: 'Q4 2026',
+    features: [
+      'L1/L2 Spread Hunter',
+      'MEV Protection Layer',
+      'Sub-Second Signal Execution',
+      'Gas-Optimized Routing'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v7',
+    title: 'Social Sentinel',
+    status: 'PLANNED',
     date: '2027',
     features: [
-      'Cross-Chain DEX Arbitrage',
-      'Yield Optimizer Insights',
-      'Governance Participation Bot',
-      'Mobile App Companion'
+      'Real-time X/Twitter Scraper',
+      'Discord Whale Alert Sync',
+      'Influencer Bias Analysis',
+      'FOMO Level Monitoring'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v8',
+    title: 'Quantum Shield',
+    status: 'PLANNED',
+    date: '2027',
+    features: [
+      'Predictive Liquidation Map',
+      'Black Swan Event Guard',
+      'Dynamic Asset Rebalancing',
+      'Institutional Flow Tracker'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v9',
+    title: 'Evo-Strategy Hub',
+    status: 'PLANNED',
+    date: '2028',
+    features: [
+      'Genetic Algorithm Backtester',
+      'Custom Scripting (v-Script)',
+      'Strategy Marketplace',
+      'Auto-Parameter Optimization'
+    ],
+    highlight: false
+  },
+  {
+    version: 'v10',
+    title: 'Singularity Core',
+    status: 'PLANNED',
+    date: '2029',
+    features: [
+      'Fully Autonomous Agent',
+      'Cross-Chain Empire Management',
+      'Self-Learning Strategy Gen',
+      'Decentralized Governance'
     ],
     highlight: false
   }
@@ -74,12 +165,14 @@ export default function RoadmapPanel({ onClose }: RoadmapPanelProps) {
                   "absolute left-0 top-1.5 w-6 h-6 rounded-full flex items-center justify-center border transition-all z-10",
                   phase.status === 'LIVE' 
                     ? "bg-brand-green border-brand-green shadow-[0_0_15px_rgba(16,185,129,0.3)]" 
-                    : phase.status === 'UP NEXT'
-                      ? "bg-brand-bg border-brand-blue"
-                      : "bg-brand-bg border-white/10"
+                    : phase.status === 'COMPLETED'
+                      ? "bg-brand-green/10 border-brand-green/30"
+                      : phase.status === 'UP NEXT'
+                        ? "bg-brand-bg border-brand-blue"
+                        : "bg-brand-bg border-white/10"
                 )}>
-                  {phase.status === 'LIVE' ? (
-                    <CheckCircle2 className="w-4 h-4 text-black" />
+                  {phase.status === 'LIVE' || phase.status === 'COMPLETED' ? (
+                    <CheckCircle2 className={cn("w-4 h-4", phase.status === 'LIVE' ? "text-black" : "text-brand-green")} />
                   ) : (
                     <Circle className={cn("w-2 h-2", phase.status === 'UP NEXT' ? "text-brand-blue fill-brand-blue" : "text-gray-700")} />
                   )}
@@ -89,12 +182,16 @@ export default function RoadmapPanel({ onClose }: RoadmapPanelProps) {
                   "p-4 rounded-2xl border transition-all duration-300",
                   phase.highlight 
                     ? "bg-white/[0.03] border-white/10 shadow-xl" 
-                    : "bg-transparent border-transparent hover:bg-white/[0.01] hover:border-white/5"
+                    : phase.status === 'COMPLETED'
+                      ? "opacity-60 grayscale-[0.5] hover:grayscale-0 hover:opacity-100"
+                      : "bg-transparent border-transparent hover:bg-white/[0.01] hover:border-white/5"
                 )}>
                   <div className="flex items-center justify-between mb-2">
                     <span className={cn(
                       "text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter",
-                      phase.status === 'LIVE' ? "bg-brand-green/10 text-brand-green" : "bg-white/5 text-gray-500"
+                      phase.status === 'LIVE' ? "bg-brand-green/10 text-brand-green" : 
+                      phase.status === 'COMPLETED' ? "bg-white/5 text-brand-green" :
+                      "bg-white/5 text-gray-500"
                     )}>
                       {phase.version}
                     </span>

@@ -28,6 +28,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [connectivity, setConnectivity] = useState<'HEALTHY' | 'SLUGGISH' | 'OFFLINE'>('HEALTHY');
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     const saved = localStorage.getItem('coinsbot_alerts');
     return saved ? JSON.parse(saved) : [];
@@ -79,6 +80,13 @@ export default function App() {
     }
     
     setIsLoading(false);
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadMarketData();
+    // Simulate a bit of loading for UX
+    setTimeout(() => setIsRefreshing(false), 1000);
   };
 
   useEffect(() => {
@@ -384,12 +392,14 @@ export default function App() {
           setIsSignalsOpen(false);
           setIsAlertsOpen(false);
         }}
+        onRefresh={handleRefresh}
         isSignalsOpen={isSignalsOpen}
         isAlertsOpen={isAlertsOpen}
         isRoadmapOpen={isRoadmapOpen}
         trend={currentSignal?.trend}
         symbol={selectedSymbol}
         connectivity={connectivity}
+        isRefreshing={isRefreshing}
       />
 
       <main className="flex-1 flex overflow-hidden relative">
