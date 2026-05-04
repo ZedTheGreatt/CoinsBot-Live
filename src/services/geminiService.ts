@@ -12,7 +12,7 @@ export interface AISentiment {
 }
 
 export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISentiment | null> {
-  if (!process.env.GEMINI_API_KEY || candles.length < 50) return null;
+  if (!process.env.GEMINI_API_KEY || candles.length < 20) return null;
 
   try {
     const recentData = candles.slice(-50).map(c => ({
@@ -26,8 +26,7 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Analyze the following 50 OHLC data points and provide a market sentiment analysis. 
-      Data: ${JSON.stringify(recentData)}`,
+      contents: [{ role: 'user', parts: [{ text: `Analyze market sentiment based on this data: ${JSON.stringify(recentData)}` }] }],
       config: {
         systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional.",
         responseMimeType: "application/json",
@@ -35,14 +34,10 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
           type: Type.OBJECT,
           required: ["score", "label", "summary", "keyFactors", "riskLevel"],
           properties: {
-            score: { type: Type.NUMBER, description: "Sentiment score from -100 (Extremely Bearish) to 100 (Extremely Bullish)" },
+            score: { type: Type.NUMBER, description: "Sentiment score -100 to 100" },
             label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
-            summary: { type: Type.STRING, description: "1-2 sentence summary of the current market state" },
-            keyFactors: { 
-              type: Type.ARRAY, 
-              items: { type: Type.STRING },
-              description: "Top 3 technical reasons for this sentiment"
-            },
+            summary: { type: Type.STRING },
+            keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
             riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
           }
         }
