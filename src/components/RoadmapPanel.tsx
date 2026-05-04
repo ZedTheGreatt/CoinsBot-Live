@@ -8,7 +8,7 @@ interface RoadmapPanelProps {
 
 const ROADMAP = [
   {
-    version: 'v2.1.0',
+    version: 'v2',
     title: 'Alpha Regime Engine',
     status: 'LIVE',
     date: 'Current',
@@ -21,7 +21,7 @@ const ROADMAP = [
     highlight: true
   },
   {
-    version: 'v2.2.0',
+    version: 'v3',
     title: 'Momentum & Flow',
     status: 'UP NEXT',
     date: 'Q2 2026',
@@ -34,7 +34,7 @@ const ROADMAP = [
     highlight: false
   },
   {
-    version: 'v3.0.0',
+    version: 'v4',
     title: 'Neural Pulse Integration',
     status: 'PLANNED',
     date: 'H2 2026',
@@ -57,7 +57,7 @@ export default function RoadmapPanel({ onClose }: RoadmapPanelProps) {
           <h3 className="text-sm font-black uppercase italic tracking-tighter">Engine Roadmap</h3>
         </div>
         <div className="px-2 py-0.5 rounded bg-brand-green/20 text-brand-green text-[9px] font-black uppercase">
-          Stable v2.1.0
+          Stable v2
         </div>
       </div>
 

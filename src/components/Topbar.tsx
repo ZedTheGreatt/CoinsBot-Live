@@ -33,7 +33,7 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, onR
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
             <div className="flex items-center gap-1.5 opacity-60">
-              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none shrink-0">V2.1.0 ALPHA</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none shrink-0">V2 ALPHA</span>
               <div className={cn(
                 "w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full animate-pulse",
                 connectivity === 'HEALTHY' ? "bg-brand-green" : connectivity === 'SLUGGISH' ? "bg-brand-yellow" : "bg-brand-red"
