@@ -2,6 +2,7 @@
   "version": 2,
   "rewrites": [
     { "source": "/api/coins/:path*", "destination": "/api/coins.ts" },
+    { "source": "/api/ai/:path*", "destination": "/api/ai.ts" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

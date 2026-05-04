@@ -64,25 +64,31 @@ export default function App() {
   // Fetch Data from Coins.ph
   const loadMarketData = async () => {
     setIsLoading(true);
-    const klines = await fetchKlines(selectedSymbol + 'PHP', timeframe);
-    if (klines.length > 0) {
-      setData(klines);
+    try {
+      const klines = await fetchKlines(selectedSymbol + 'PHP', timeframe);
+      if (klines && klines.length > 0) {
+        setData(klines);
+      }
+      
+      // Also fetch ticker whenever symbol changes
+      const ticker = await fetchTicker(selectedSymbol + 'PHP');
+      if (ticker) {
+        setTickerData({
+          priceChange: ticker.priceChange,
+          priceChangePercent: ticker.priceChangePercent,
+          high: ticker.high,
+          low: ticker.low,
+          volume: ticker.volume,
+          quoteVolume: ticker.quoteVolume
+        });
+      }
+      setConnectivity('HEALTHY');
+    } catch (err) {
+      console.error("[App] Load market data failure:", err);
+      setConnectivity('SLUGGISH');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Also fetch ticker whenever symbol changes
-    const ticker = await fetchTicker(selectedSymbol + 'PHP');
-    if (ticker) {
-      setTickerData({
-        priceChange: ticker.priceChange,
-        priceChangePercent: ticker.priceChangePercent,
-        high: ticker.high,
-        low: ticker.low,
-        volume: ticker.volume,
-        quoteVolume: ticker.quoteVolume
-      });
-    }
-    
-    setIsLoading(false);
   };
 
   const handleRefresh = async () => {

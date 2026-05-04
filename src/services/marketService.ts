@@ -19,10 +19,19 @@ export async function fetchKlines(symbol: string, interval: Timeframe = '1m', li
   
   try {
     const url = `/api/coins/klines?symbol=${formattedSymbol}&interval=${apiInterval}&limit=${limit}`;
-    const response = await fetch(url);
+    let response = await fetch(url);
+    
+    // Simple retry logic
+    if (!response.ok && response.status >= 500) {
+      console.warn(`[MarketService] Retrying klines for ${symbol}...`);
+      await new Promise(r => setTimeout(r, 1000));
+      response = await fetch(url);
+    }
+
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`HTTP error! status: ${response.status} - ${text.substring(0, 100)}`);
+      const text = await response.text().catch(() => 'No error body');
+      console.warn(`[MarketService] Klines failure: ${response.status} ${text.substring(0, 50)}`);
+      return [];
     }
     
     const data = await response.json();
@@ -49,12 +58,17 @@ export async function fetchTicker(symbol: string) {
   const formattedSymbol = symbol.replace('/', '');
   try {
     const url = `/api/coins/ticker?symbol=${formattedSymbol}`;
-    console.log(`[MarketService] Fetching ticker from ${url}`);
-    const response = await fetch(url);
+    let response = await fetch(url);
+    
+    if (!response.ok && response.status >= 500) {
+      await new Promise(r => setTimeout(r, 1000));
+      response = await fetch(url);
+    }
+
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'No error body');
-      console.error(`[MarketService] Ticker API error: ${response.status} - ${errorText}`);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.warn(`[MarketService] Ticker failure: ${response.status} - ${errorText.substring(0, 50)}`);
+      return null;
     }
     const data = await response.json();
     
@@ -79,9 +93,12 @@ export async function fetchTicker(symbol: string) {
 
 export async function fetchAllTickers() {
   try {
-    const url = `/api/coins/ticker`; // No symbol should return all
+    const url = `/api/coins/ticker`; 
     const response = await fetch(url);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    if (!response.ok) {
+      console.warn(`[MarketService] AllTickers failure: ${response.status}`);
+      return [];
+    }
     const data = await response.json();
     
     if (!Array.isArray(data)) return [];

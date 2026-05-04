@@ -1,4 +1,3 @@
-import { GoogleGenAI, Type } from "@google/genai";
 import { OHLCCandle } from "../types";
 
 export interface AISentiment {
@@ -7,57 +6,45 @@ export interface AISentiment {
   summary: string;
   keyFactors: string[];
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  error?: string;
 }
 
 export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISentiment | null> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey || candles.length < 20) {
-    if (!apiKey) console.warn("[NeuralPulse] GEMINI_API_KEY is missing. AI analysis disabled.");
-    return null;
-  }
+  // We call our internal API which has access to the server-side GEMINI_API_KEY
+  if (candles.length < 20) return null;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const recentData = candles.slice(-50).map(c => ({
-      t: new Date((c.time as number) * 1000).toISOString(),
-      o: c.open,
-      h: c.high,
-      l: c.low,
-      c: c.close,
-      v: c.volume
-    }));
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: [{ role: 'user', parts: [{ text: `Analyze the market sentiment based on this data: ${JSON.stringify(recentData)}` }] }],
-      config: {
-        systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional.",
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          required: ["score", "label", "summary", "keyFactors", "riskLevel"],
-          properties: {
-            score: { type: Type.NUMBER, description: "Sentiment score -100 to 100" },
-            label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
-            summary: { type: Type.STRING },
-            keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
-            riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
-          }
-        }
-      }
+    const response = await fetch('/api/ai/sentiment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ candles }),
     });
 
-    if (response.text) {
-      try {
-        return JSON.parse(response.text.trim());
-      } catch (parseError) {
-        console.error("[NeuralPulse] Parse error:", parseError, response.text);
-        return null;
-      }
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error("[NeuralPulse] API error:", response.status, errorData);
+      return {
+        score: 0,
+        label: 'NEUTRAL',
+        summary: 'Neural Engine Error',
+        keyFactors: [],
+        riskLevel: 'MEDIUM',
+        error: errorData.error || `Server responded with ${response.status}`
+      };
     }
-    return null;
+
+    return await response.json();
   } catch (error) {
-    console.error("[NeuralPulse] AI Error:", error);
-    return null;
+    console.error("[NeuralPulse] Connection error:", error);
+    return {
+      score: 0,
+      label: 'NEUTRAL',
+      summary: 'Connection Error',
+      keyFactors: [],
+      riskLevel: 'MEDIUM',
+      error: 'Failed to connect to Neural Engine'
+    };
   }
 }

@@ -3,6 +3,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import https from "https";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,14 +20,15 @@ async function startServer() {
   const httpsRequest = (url: string): Promise<any> => {
     return new Promise((resolve, reject) => {
       console.log(`[Proxy] Requesting: ${url}`);
-      https.get(url, {
+      const options = {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
         },
-        timeout: 10000 // 10s timeout
-      }, (res) => {
+        timeout: 15000 // Increased to 15s
+      };
+
+      https.get(url, options, (res) => {
         let data = '';
         res.on('data', (chunk) => data += chunk);
         res.on('end', () => {
@@ -32,18 +36,19 @@ async function startServer() {
             try {
               resolve(JSON.parse(data));
             } catch (e) {
-              reject(new Error(`Failed to parse JSON: ${data.substring(0, 100)}`));
+              console.error(`[Proxy] JSON Parse Error for ${url}:`, data.substring(0, 500));
+              reject(new Error(`Failed to parse JSON response`));
             }
           } else {
-            console.error(`[Proxy] API Error: ${res.statusCode} - ${data.substring(0, 200)}`);
-            reject(new Error(`Status ${res.statusCode}: ${data.substring(0, 100)}`));
+            console.error(`[Proxy] API Error for ${url}: ${res.statusCode} - ${data.substring(0, 200)}`);
+            reject(new Error(`API responded with ${res.statusCode}`));
           }
         });
       }).on('error', (err) => {
-        console.error(`[Proxy] Connection Error: ${err.message}`);
+        console.error(`[Proxy] Connection Error for ${url}: ${err.message}`);
         reject(err);
       }).on('timeout', () => {
-        console.error('[Proxy] Request timed out');
+        console.error(`[Proxy] Timeout for ${url}`);
         reject(new Error('Request timed out'));
       });
     });
@@ -86,6 +91,68 @@ async function startServer() {
     } catch (error) {
       console.error("[Proxy] Ticker exception:", error);
       res.status(500).json({ error: "Failed to fetch ticker from Coins.ph" });
+    }
+  });
+
+  // Neural Pulse AI Agent (Server-side to protect API Key)
+  app.post("/api/ai/sentiment", async (req, res) => {
+    const { candles } = req.body;
+    
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("[AI] GEMINI_API_KEY is missing");
+      return res.status(500).json({ error: "Neural Engine not configured. Please add GEMINI_API_KEY." });
+    }
+
+    if (!candles || !Array.isArray(candles)) {
+      return res.status(400).json({ error: "Invalid candle data" });
+    }
+
+    try {
+      const { GoogleGenAI } = await import("@google/genai");
+      // Cast to any to satisfy linter while maintaining correct runtime logic
+      const genAI = new (GoogleGenAI as any)({ apiKey: process.env.GEMINI_API_KEY as string });
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional." 
+      });
+
+      const recentData = candles.slice(-50).map((c: any) => ({
+        t: new Date((c.time || 0) * 1000).toISOString(),
+        o: c.open,
+        h: c.high,
+        l: c.low,
+        c: c.close,
+        v: c.volume
+      }));
+
+      const prompt = `Analyze the current crypto market based on these 50 candles. Professional tone.
+      Provide a JSON response ONLY. No markdown, no triple backsticks. Must be valid JSON.
+      Structure:
+      {
+        "score": number (-100 to 100),
+        "label": "BULLISH" | "BEARISH" | "NEUTRAL",
+        "summary": "string",
+        "keyFactors": ["string", "string", "string"],
+        "riskLevel": "LOW" | "MEDIUM" | "HIGH"
+      }
+      
+      Data: ${JSON.stringify(recentData)}`;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+      
+      // Extract JSON in case model still wraps it
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+      
+      const parsed = JSON.parse(jsonStr.trim());
+      res.json(parsed);
+    } catch (error: any) {
+      console.error("[AI] Error:", error);
+      res.status(500).json({ 
+        error: "Neural Engine failure", 
+        details: error instanceof Error ? error.message : String(error) 
+      });
     }
   });
 
