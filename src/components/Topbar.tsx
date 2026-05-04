@@ -6,6 +6,7 @@ interface TopbarProps {
   onSignalsClick?: () => void;
   onAlertsClick?: () => void;
   onRoadmapClick?: () => void;
+  onSettingsClick?: () => void;
   onRefresh?: () => void;
   isSignalsOpen?: boolean;
   isAlertsOpen?: boolean;
@@ -20,7 +21,8 @@ export default function Topbar({
   onMenuClick, 
   onSignalsClick, 
   onAlertsClick, 
-  onRoadmapClick, 
+  onRoadmapClick,
+  onSettingsClick,
   onRefresh,
   isSignalsOpen, 
   isAlertsOpen, 
@@ -110,6 +112,14 @@ export default function Topbar({
              title="Manual Sync"
            >
              <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+           </button>
+
+           <button 
+             onClick={onSettingsClick}
+             title="AI Settings"
+             className="p-2 sm:p-2.5 rounded-xl transition-all bg-brand-surface text-gray-400 hover:text-white border border-brand-border hover:border-white/20 active:scale-95"
+           >
+             <Settings className="w-4 h-4" />
            </button>
 
            <button 

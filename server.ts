@@ -16,8 +16,23 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Helper for HTTPS requests
-  const httpsRequest = (url: string): Promise<any> => {
+  // In-memory cache for API requests
+  const cache = new Map<string, { data: any, timestamp: number }>();
+  const CACHE_TTL = {
+    klines: 60000, // 1 minute
+    ticker: 10000, // 10 seconds
+  };
+
+  // Helper for HTTPS requests with optional caching
+  const httpsRequest = (url: string, ttl: number = 0): Promise<any> => {
+    if (ttl > 0) {
+      const cached = cache.get(url);
+      if (cached && Date.now() - cached.timestamp < ttl) {
+        console.log(`[Proxy] Cache hit: ${url}`);
+        return Promise.resolve(cached.data);
+      }
+    }
+
     return new Promise((resolve, reject) => {
       console.log(`[Proxy] Requesting: ${url}`);
       const options = {
@@ -25,7 +40,7 @@ async function startServer() {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           'Accept': 'application/json',
         },
-        timeout: 15000 // Increased to 15s
+        timeout: 8000 // Reduced to 8s for faster failure/retry cycle
       };
 
       https.get(url, options, (res) => {
@@ -34,7 +49,11 @@ async function startServer() {
         res.on('end', () => {
           if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
             try {
-              resolve(JSON.parse(data));
+              const parsedData = JSON.parse(data);
+              if (ttl > 0) {
+                cache.set(url, { data: parsedData, timestamp: Date.now() });
+              }
+              resolve(parsedData);
             } catch (e) {
               console.error(`[Proxy] JSON Parse Error for ${url}:`, data.substring(0, 500));
               reject(new Error(`Failed to parse JSON response`));
@@ -57,8 +76,8 @@ async function startServer() {
   // Health check
   app.get("/api/health", async (req, res) => {
     try {
-      // Test with a simple ticker request
-      await httpsRequest('https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=BTCPHP');
+      // Test with a simple ticker request (3s cache for health check)
+      await httpsRequest('https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=BTCPHP', 3000);
       res.json({ status: "ok", api: "connected" });
     } catch (error) {
       res.status(503).json({ status: "error", api: "disconnected", message: error instanceof Error ? error.message : String(error) });
@@ -68,10 +87,9 @@ async function startServer() {
   // Coins.ph API Proxy
   app.get("/api/coins/klines", async (req, res) => {
     const { symbol, interval, limit } = req.query;
-    console.log(`[Proxy] Fetching klines for ${symbol} (${interval})`);
     try {
       const url = `https://api.pro.coins.ph/openapi/quote/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit || 500}`;
-      const data = await httpsRequest(url);
+      const data = await httpsRequest(url, CACHE_TTL.klines);
       res.json(data);
     } catch (error) {
       console.error("[Proxy] Klines exception:", error);
@@ -81,12 +99,11 @@ async function startServer() {
 
   app.get("/api/coins/ticker", async (req, res) => {
     const { symbol } = req.query;
-    console.log(`[Proxy] Fetching ticker for ${symbol || 'ALL'}`);
     try {
       const url = symbol 
         ? `https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=${symbol}`
         : `https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr`;
-      const data = await httpsRequest(url);
+      const data = await httpsRequest(url, CACHE_TTL.ticker);
       res.json(data);
     } catch (error) {
       console.error("[Proxy] Ticker exception:", error);
@@ -109,8 +126,7 @@ async function startServer() {
 
     try {
       const { GoogleGenAI, Type } = await import("@google/genai");
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
-
+      
       const recentData = candles.slice(-50).map((c: any) => ({
         t: new Date((c.time || 0) * 1000).toISOString(),
         o: c.open,
@@ -120,28 +136,51 @@ async function startServer() {
         v: c.volume
       }));
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [{ role: 'user', parts: [{ text: `Analyze market: ${JSON.stringify(recentData)}` }] }],
-        config: {
-          systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            required: ["score", "label", "summary", "keyFactors", "riskLevel"],
-            properties: {
-              score: { type: Type.NUMBER },
-              label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
-              summary: { type: Type.STRING },
-              keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
-              riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
-            }
-          }
-        }
-      });
+      const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
+      
+      if (keys.length === 0) {
+        throw new Error("No API keys configured");
+      }
 
-      const responseText = response.text;
-      if (!responseText) throw new Error("No response from AI");
+      let lastError: any = null;
+      let responseText = "";
+
+      for (const key of keys) {
+        try {
+          const ai = new (GoogleGenAI as any)({ apiKey: key });
+          const response = await ai.models.generateContent({
+            model: "gemini-3-flash-preview",
+            contents: [{ role: 'user', parts: [{ text: `Analyze market: ${JSON.stringify(recentData)}` }] }],
+            config: {
+              systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY.",
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                required: ["score", "label", "summary", "keyFactors", "riskLevel"],
+                properties: {
+                  score: { type: Type.NUMBER },
+                  label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
+                  summary: { type: Type.STRING },
+                  keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
+                  riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
+                }
+              }
+            }
+          });
+
+          if (response.text) {
+            responseText = response.text;
+            break; // Success!
+          }
+        } catch (err: any) {
+          console.warn(`[AI] API Key failed, trying fallback if available... Error: ${err.message}`);
+          lastError = err;
+        }
+      }
+
+      if (!responseText) {
+        throw lastError || new Error("Failed to generate content from all available keys");
+      }
       
       res.json(JSON.parse(responseText.trim()));
     } catch (error: any) {
