@@ -108,13 +108,8 @@ async function startServer() {
     }
 
     try {
-      const { GoogleGenAI } = await import("@google/genai");
-      // Cast to any to satisfy linter while maintaining correct runtime logic
-      const genAI = new (GoogleGenAI as any)({ apiKey: process.env.GEMINI_API_KEY as string });
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional." 
-      });
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
 
       const recentData = candles.slice(-50).map((c: any) => ({
         t: new Date((c.time || 0) * 1000).toISOString(),
@@ -125,28 +120,30 @@ async function startServer() {
         v: c.volume
       }));
 
-      const prompt = `Analyze the current crypto market based on these 50 candles. Professional tone.
-      Provide a JSON response ONLY. No markdown, no triple backsticks. Must be valid JSON.
-      Structure:
-      {
-        "score": number (-100 to 100),
-        "label": "BULLISH" | "BEARISH" | "NEUTRAL",
-        "summary": "string",
-        "keyFactors": ["string", "string", "string"],
-        "riskLevel": "LOW" | "MEDIUM" | "HIGH"
-      }
-      
-      Data: ${JSON.stringify(recentData)}`;
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: [{ role: 'user', parts: [{ text: `Analyze market: ${JSON.stringify(recentData)}` }] }],
+        config: {
+          systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            required: ["score", "label", "summary", "keyFactors", "riskLevel"],
+            properties: {
+              score: { type: Type.NUMBER },
+              label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
+              summary: { type: Type.STRING },
+              keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
+              riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
+            }
+          }
+        }
+      });
 
-      const result = await model.generateContent(prompt);
-      const responseText = result.response.text();
+      const responseText = response.text;
+      if (!responseText) throw new Error("No response from AI");
       
-      // Extract JSON in case model still wraps it
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
-      
-      const parsed = JSON.parse(jsonStr.trim());
-      res.json(parsed);
+      res.json(JSON.parse(responseText.trim()));
     } catch (error: any) {
       console.error("[AI] Error:", error);
       res.status(500).json({ 
