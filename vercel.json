@@ -1,16 +1,7 @@
-<<<<<<< HEAD
 {
   "version": 2,
   "rewrites": [
     { "source": "/api/coins/:path*", "destination": "/api/coins.ts" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
-=======
-{
-  "version": 2,
-  "rewrites": [
-    { "source": "/api/coins/:path*", "destination": "/api/coins.ts" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
->>>>>>> a47c44b6a6d0ea2d2e72d8e0a3f645e83b516f46
 }
