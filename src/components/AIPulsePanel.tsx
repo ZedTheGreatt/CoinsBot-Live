@@ -122,12 +122,12 @@ export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps
           <span className="text-[10px] font-black uppercase tracking-widest text-brand-blue">Logic Highlights</span>
         </div>
         <ul className="space-y-2">
-          {sentiment.keyFactors.map((factor, i) => (
+          {sentiment.keyFactors?.map((factor, i) => (
             <li key={i} className="flex items-start gap-2 text-[10px] text-gray-400">
               <span className="w-1 h-1 rounded-full bg-brand-blue/30 mt-1.5 shrink-0" />
               {factor}
             </li>
-          ))}
+          )) || <li className="text-[10px] text-gray-500 italic">No factors identified.</li>}
         </ul>
       </div>
 

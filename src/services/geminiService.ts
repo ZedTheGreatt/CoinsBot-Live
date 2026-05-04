@@ -1,8 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { OHLCCandle } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export interface AISentiment {
   score: number; // -100 to 100
   label: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
@@ -12,9 +10,14 @@ export interface AISentiment {
 }
 
 export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISentiment | null> {
-  if (!process.env.GEMINI_API_KEY || candles.length < 20) return null;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey || candles.length < 20) {
+    if (!apiKey) console.warn("[NeuralPulse] API Key missing from environment.");
+    return null;
+  }
 
   try {
+    const ai = new GoogleGenAI({ apiKey });
     const recentData = candles.slice(-50).map(c => ({
       t: new Date((c.time as number) * 1000).toISOString(),
       o: c.open,
@@ -26,7 +29,7 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: [{ role: 'user', parts: [{ text: `Analyze market sentiment based on this data: ${JSON.stringify(recentData)}` }] }],
+      contents: `Analyze the market sentiment based on this OHLC data: ${JSON.stringify(recentData)}`,
       config: {
         systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional.",
         responseMimeType: "application/json",
@@ -45,8 +48,12 @@ export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISenti
     });
 
     if (response.text) {
-      const data = JSON.parse(response.text.trim());
-      return data;
+      try {
+        return JSON.parse(response.text.trim());
+      } catch (parseError) {
+        console.error("[NeuralPulse] Failed to parse AI response:", parseError);
+        return null;
+      }
     }
     return null;
   } catch (error) {

@@ -189,11 +189,17 @@ export default function App() {
       lastAiFetchTime.current = now;
       lastAiSymbol.current = selectedSymbol;
       setIsAiLoading(true);
-      setAiSentiment(null); // Clear previous sentiment while thinking
-      getMarketSentiment(data).then(s => {
-        if (s) setAiSentiment(s);
-        setIsAiLoading(false);
-      });
+      setAiSentiment(null);
+      getMarketSentiment(data)
+        .then(s => {
+          if (s) setAiSentiment(s);
+        })
+        .catch(err => {
+          console.error("[App] Neural Pulse failure:", err);
+        })
+        .finally(() => {
+          setIsAiLoading(false);
+        });
     }
   }, [data]);
 
