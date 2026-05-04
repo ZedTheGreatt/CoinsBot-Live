@@ -29,6 +29,7 @@ export default function App() {
   const [connectivity, setConnectivity] = useState<'HEALTHY' | 'SLUGGISH' | 'OFFLINE'>('HEALTHY');
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [autoSignalEnabled, setAutoSignalEnabled] = useState(true);
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => {
     const saved = localStorage.getItem('coinsbot_alerts');
     return saved ? JSON.parse(saved) : [];
@@ -37,6 +38,7 @@ export default function App() {
   const [aiSentiment, setAiSentiment] = useState<AISentiment | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const lastAiFetchTime = useRef<number>(0);
+  const lastSignalNotificationRef = useRef<Record<string, string>>({}); // Tracks last notified signal per alert
   const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number, change: number }>>({});
   const [tickerData, setTickerData] = useState<{
     priceChange: number;
@@ -241,6 +243,25 @@ export default function App() {
     
     const triggeredAlerts: PriceAlert[] = [];
 
+    // Global Auto-Signal Logic (Selected Symbol Only)
+    if (autoSignalEnabled && latestSignal) {
+      const currentCandleTime = data[data.length - 1].time;
+      const isActionable = ['BUY', 'STRONG_BUY', 'SELL', 'STRONG_SELL'].includes(latestSignal.type);
+      const autoSignalId = `AUTO_${selectedSymbol}_${latestSignal.time}_${latestSignal.type}`;
+
+      if (latestSignal.time === currentCandleTime && isActionable && lastSignalNotificationRef.current['AUTO'] !== autoSignalId) {
+        lastSignalNotificationRef.current['AUTO'] = autoSignalId;
+        // Mock a temporary alert object for the notification loop
+        triggeredAlerts.push({
+          id: 'AUTO',
+          symbol: selectedSymbol,
+          condition: 'SIGNAL',
+          isActive: true,
+          createdAt: Date.now()
+        });
+      }
+    }
+
     alerts.forEach(alert => {
       if (!alert.isActive || alert.symbol !== selectedSymbol) return;
 
@@ -251,7 +272,11 @@ export default function App() {
       } 
       else if (alert.condition === 'SIGNAL' && latestSignal) {
         const currentCandleTime = data[data.length - 1].time;
-        if (latestSignal.time === currentCandleTime) {
+        const isActionable = ['BUY', 'STRONG_BUY', 'SELL', 'STRONG_SELL'].includes(latestSignal.type);
+        const signalId = `${alert.id}_${latestSignal.time}_${latestSignal.type}`;
+        
+        if (latestSignal.time === currentCandleTime && isActionable && lastSignalNotificationRef.current[alert.id] !== signalId) {
+          lastSignalNotificationRef.current[alert.id] = signalId;
           triggeredAlerts.push(alert);
         }
       }
@@ -583,9 +608,20 @@ export default function App() {
                     ) : isSignalsOpen ? (
                       <>
                         <div className="p-4 border-b border-brand-border flex items-center justify-between bg-brand-surface/50">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Zap className="w-4 h-4 text-brand-green fill-current" />
                             <h3 className="text-sm font-black uppercase italic tracking-tighter">Signal Analysis</h3>
+                            <button 
+                              onClick={() => setAutoSignalEnabled(!autoSignalEnabled)}
+                              className={cn(
+                                "flex items-center gap-2 px-2 py-1 rounded-lg border transition-all active:scale-95",
+                                autoSignalEnabled ? "bg-brand-green/20 border-brand-green/30 text-brand-green" : "bg-white/5 border-white/10 text-gray-500"
+                              )}
+                              title={autoSignalEnabled ? "Switch to Manual Notifications" : "Enable Auto Actionable Notifications"}
+                            >
+                              <div className={cn("w-1.5 h-1.5 rounded-full", autoSignalEnabled ? "bg-brand-green animate-pulse" : "bg-gray-600")} />
+                              <span className="text-[8px] font-black uppercase tracking-widest">Auto Signal</span>
+                            </button>
                           </div>
                           <button 
                             onClick={() => setIsSignalsOpen(false)}
