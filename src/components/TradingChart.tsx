@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, LineData, SeriesMarker, LineStyle, CandlestickSeries, HistogramSeries, LineSeries, MouseEventParams } from 'lightweight-charts';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, LineData, SeriesMarker, LineStyle, CandlestickSeries, HistogramSeries, LineSeries, MouseEventParams, createSeriesMarkers, ISeriesMarkersPluginApi } from 'lightweight-charts';
 import { OHLCCandle, MarketSignal } from '../types';
 import { calculateEMA, generateSignals } from '../lib/engine';
 import { motion, AnimatePresence } from 'motion/react';
-import { Zap, TrendingUp, TrendingDown, Info, Target, ShieldAlert, Clock } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { Zap, TrendingUp, TrendingDown, Info, Target, ShieldAlert, Clock, Activity } from 'lucide-react';
+import { cn, formatInPHT } from '../lib/utils';
 
 interface TradingChartProps {
   data: OHLCCandle[];
@@ -16,6 +15,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const markersPluginRef = useRef<ISeriesMarkersPluginApi<any> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const ema200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -44,6 +44,17 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
         borderColor: '#1E2329',
         timeVisible: true,
         secondsVisible: false,
+        tickMarkFormatter: (time: number) => {
+          return formatInPHT(time * 1000, { showDate: true, concise: true });
+        },
+      },
+      localization: {
+        timeFormatter: (time: number) => {
+          return formatInPHT(time * 1000, { showDate: true, showSeconds: true });
+        },
+        priceFormatter: (price: number) => {
+          return price.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        }
       },
       rightPriceScale: {
         borderColor: '#1E2329',
@@ -95,14 +106,14 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
       color: '#60A5FA',
       lineWidth: 2,
       priceLineVisible: false,
-      lastValueVisible: false,
+      lastValueVisible: true,
     });
 
     const ema200Series = chart.addSeries(LineSeries, {
       color: '#FACC15',
       lineWidth: 2,
       priceLineVisible: false,
-      lastValueVisible: false,
+      lastValueVisible: true,
     });
 
     const handleCrosshairMove = (param: MouseEventParams) => {
@@ -133,6 +144,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
     chart.subscribeCrosshairMove(handleCrosshairMove);
 
     candleSeriesRef.current = candleSeries;
+    markersPluginRef.current = createSeriesMarkers(candleSeries, []);
     volumeSeriesRef.current = volumeSeries;
     ema50SeriesRef.current = ema50Series;
     ema200SeriesRef.current = ema200Series;
@@ -185,36 +197,46 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
     // Apply signals
     const signals = generateSignals(data);
     signalsRef.current = signals;
+    console.log(`[TradingChart] Generated ${signals.length} signals for ${symbol}`);
 
-    const markers: SeriesMarker<any>[] = signals.map((s, idx) => {
-      const isStrong = s.type.startsWith('STRONG');
+    const markers: SeriesMarker<any>[] = signals.map((s) => {
       const isBuy = s.type.includes('BUY');
-      const isLatest = idx === signals.length - 1;
       
       return {
         time: s.time as any,
         position: isBuy ? 'belowBar' : 'aboveBar',
         color: isBuy ? '#10b981' : '#ef4444',
         shape: isBuy ? 'arrowUp' : 'arrowDown',
-        text: isStrong ? '★' : '', // Subtle star for strong signals
-        size: isStrong ? 2 : 1,
+        text: isBuy ? 'BUY' : 'SELL', 
+        size: 1, 
       };
     });
 
-    if (candleSeriesRef.current && (candleSeriesRef.current as any).setMarkers) {
-      (candleSeriesRef.current as any).setMarkers(markers);
+    if (markersPluginRef.current) {
+      try {
+        markersPluginRef.current.setMarkers(markers);
+      } catch (e) {
+        console.error('[TradingChart] Error setting markers:', e instanceof Error ? e.message : String(e));
+      }
     }
     
-    // Auto-fit only on first load or when switching symbols
+    // Default zoom: Show last 100 candles instead of fitting everything
     if (data.length > 0 && lastSymbolRef.current !== symbol) {
-      chartRef.current?.timeScale().fitContent();
+      if (data.length > 100) {
+        chartRef.current?.timeScale().setVisibleRange({
+          from: data[data.length - 100].time as any,
+          to: data[data.length - 1].time as any,
+        });
+      } else {
+        chartRef.current?.timeScale().fitContent();
+      }
       lastSymbolRef.current = symbol;
     }
 
   }, [data, symbol]);
 
   return (
-    <div className="relative w-full h-full min-h-[400px] bg-brand-bg rounded-xl overflow-hidden group">
+    <div className="relative w-full h-full min-h-[300px] sm:min-h-[400px] bg-brand-bg rounded-xl overflow-hidden group">
       <div ref={chartContainerRef} className="w-full h-full" />
       
       {/* Signal Tooltip */}
@@ -230,7 +252,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
               top: tooltipPos.y - 120, // Offset to appear above the cursor
             }}
           >
-            <div className="bg-brand-bg/95 backdrop-blur-md border border-brand-border p-4 rounded-xl shadow-2xl min-w-[200px] ring-1 ring-white/5">
+            <div className="bg-brand-bg/95 backdrop-blur-md border border-brand-border p-4 rounded-xl shadow-2xl min-w-[180px] max-w-[240px] ring-1 ring-white/5 relative">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className={cn(
@@ -244,8 +266,8 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
                     {hoveredSignal.type.replace('_', ' ')}
                   </span>
                 </div>
-                <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10">
-                  <span className="text-[10px] font-bold text-gray-400">
+                <div className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 shrink-0">
+                  <span className="text-[9px] font-black text-gray-500 uppercase tracking-tighter">
                     {hoveredSignal.confidence}% Conf.
                   </span>
                 </div>
@@ -285,7 +307,7 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
                 <div className="pt-2 border-t border-brand-border flex items-center justify-between text-[9px] text-gray-500 font-medium">
                    <div className="flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5" />
-                      <span>{format(hoveredSignal.time * 1000, 'HH:mm:ss')}</span>
+                      <span>{formatInPHT(hoveredSignal.time * 1000, { showSeconds: true })}</span>
                    </div>
                    <div className="flex items-center gap-1">
                       {hoveredSignal.trend === 'BULLISH' ? <TrendingUp className="w-2.5 h-2.5 text-brand-green" /> : <TrendingDown className="w-2.5 h-2.5 text-red-500" />}
@@ -301,13 +323,18 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
         )}
       </AnimatePresence>
 
-      {/* Watermark/Logo Overlay */}
-      <div className="absolute top-4 left-4 z-10 pointer-events-none opacity-20">
-         <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-brand-green rounded flex items-center justify-center">
-               <Zap className="w-4 h-4 text-black fill-current" />
+      {/* TradingView Style Watermark/Header */}
+      <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 pointer-events-none select-none">
+         <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] sm:text-[11px] font-medium text-gray-500">
+              {symbol} / PHP, {data.length > 0 ? formatInPHT(data[data.length-1].time * 1000, { concise: true }) : '---'}
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                <Activity className="w-3 h-3 text-brand-green" />
+                CoinsBot <span className="text-brand-green">GainzAlgo V2</span>
+              </span>
             </div>
-            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">GainzAlgo <span className="text-brand-green">Engine</span></span>
          </div>
       </div>
     </div>

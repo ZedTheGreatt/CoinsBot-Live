@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/coins/:path*", "destination": "/api/coins.ts" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

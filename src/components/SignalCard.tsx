@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Zap, Clock } from 'lucide-react';
+import { Target, AlertTriangle, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown, Zap, Clock, Activity } from 'lucide-react';
 import { MarketSignal } from '../types';
 import { cn } from '../lib/utils';
 
@@ -12,7 +12,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
   if (!signal) {
     return (
       <div className="h-64 flex flex-col items-center justify-center text-center p-8 bg-brand-surface rounded-xl border border-brand-border border-dashed">
-        <ActivityIcon className="w-8 h-8 text-gray-700 mb-4 animate-pulse" />
+        <Activity className="w-8 h-8 text-gray-700 mb-4 animate-pulse" />
         <p className="text-gray-500 text-[10px] uppercase font-black tracking-widest">Scanning Market Bias...</p>
       </div>
     );
@@ -26,7 +26,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
       <motion.div 
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        className="bg-white/5 rounded-xl border border-white/10 p-5 space-y-5 shadow-2xl relative overflow-hidden group"
+        className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-5 space-y-4 sm:space-y-5 shadow-2xl relative overflow-hidden group"
       >
         <div className="absolute top-0 right-0 p-2 opacity-5 scale-150 -rotate-12 translate-x-4 -translate-y-4">
            {isBuy ? <TrendingUp className="w-20 h-20 text-white" /> : <TrendingDown className="w-20 h-20 text-white" />}
@@ -44,31 +44,73 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 relative">
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Confidence</p>
-            <p className="text-2xl font-mono font-black text-white">{signal.confidence}%</p>
+        <div className="grid grid-cols-2 gap-3 relative">
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-brand-green/30 transition-colors">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">Confidence</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-2xl font-mono font-black text-white italic tracking-tighter">{signal.confidence}</span>
+              <span className="text-[10px] font-black text-gray-500 uppercase">%</span>
+            </div>
           </div>
-          <div className="bg-black/40 p-3 rounded-lg border border-white/5">
-            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1">Volatility</p>
-            <p className="text-2xl font-mono font-black text-brand-blue">MED</p>
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-white/20 transition-colors relative overflow-hidden">
+            <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">RSI 14</p>
+            <p className={cn(
+              "text-2xl font-mono font-black italic tracking-tighter z-10",
+              rsi < 30 ? "text-brand-green" : rsi > 70 ? "text-brand-red" : "text-gray-400"
+            )}>{Math.round(rsi)}</p>
+            <div className="absolute bottom-0 left-0 h-1 bg-white/5 w-full">
+              <motion.div 
+                className={cn(
+                  "h-full",
+                  rsi < 30 ? "bg-brand-green" : rsi > 70 ? "bg-brand-red" : "bg-brand-blue"
+                )}
+                initial={{ width: 0 }}
+                animate={{ width: `${rsi}%` }}
+              />
+            </div>
           </div>
         </div>
 
         <div className="space-y-4 relative">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Take Profit</span>
-            <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span>
+          <div className="p-3 bg-black/40 rounded-xl border border-white/5 space-y-3">
+             <div className="flex items-center justify-between">
+               <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest opacity-60">SENTIMENT</span>
+               <span className={cn(
+                 "text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded",
+                 rsi < 40 ? "bg-brand-green/20 text-brand-green" : rsi > 60 ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
+               )}>
+                 {rsi < 30 ? "OVERSOLD" : rsi > 70 ? "OVERBOUGHT" : rsi < 40 ? "BULLISH" : rsi > 60 ? "BEARISH" : "NEUTRAL"}
+               </span>
+             </div>
+             <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden flex">
+                <motion.div 
+                   className="h-full bg-brand-green"
+                   initial={{ width: '50%' }}
+                   animate={{ width: `${100 - rsi}%` }}
+                   transition={{ type: 'spring', damping: 20 }}
+                />
+                <motion.div 
+                   className="h-full bg-brand-red"
+                   initial={{ width: '50%' }}
+                   animate={{ width: `${rsi}%` }}
+                   transition={{ type: 'spring', damping: 20 }}
+                />
+             </div>
+          </div>
+
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Target Alpha</span>
+            <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Stop Loss</span>
-            <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 1 })}</span>
+            <span className="text-[10px] text-gray-500 uppercase font-bold">Max Protection</span>
+            <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
           </div>
           <div className="h-px bg-white/10"></div>
           <div className="space-y-2">
-            <IndicatorItem label="EMA(50/200) Cross" value={isBuy ? "BULLISH" : "BEARISH"} active={true} />
-            <IndicatorItem label="Momentum RSI" value={rsi > 50 ? "ASCENDING" : "DESCENDING"} active={true} />
-            <IndicatorItem label="Volume Spike" value="DETECTED" active={true} />
+            <IndicatorItem label="Alpha Cross (EMA)" value={isBuy ? "BULL SHIFT" : "BEAR SHIFT"} color={isBuy ? 'green' : 'red'} />
+            <IndicatorItem label="Momentum Gate" value={rsi < 40 ? "RECOVERY" : rsi > 60 ? "OVEREXTENDED" : "NEUTRAL"} color={rsi < 40 ? 'green' : rsi > 60 ? 'red' : 'gray'} />
+            <IndicatorItem label="Volume Matrix" value="SPIKE CONFIRMED" color='green' />
           </div>
         </div>
       </motion.div>
@@ -76,19 +118,14 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
   );
 }
 
-function IndicatorItem({ label, value, active }: { label: string, value: string, active: boolean }) {
+function IndicatorItem({ label, value, color }: { label: string, value: string, color: 'green' | 'red' | 'gray' }) {
   return (
     <div className="flex items-center justify-between text-[10px]">
       <span className="text-gray-500 uppercase font-bold">{label}</span>
-      <span className={cn("font-black", active ? "text-brand-green" : "text-gray-400")}>{value}</span>
+      <span className={cn(
+        "font-black tracking-tighter",
+        color === 'green' ? "text-brand-green" : color === 'red' ? "text-brand-red" : "text-gray-400"
+      )}>{value}</span>
     </div>
-  );
-}
-
-function ActivityIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" height="24" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-    </svg>
   );
 }
