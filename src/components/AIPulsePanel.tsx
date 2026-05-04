@@ -44,7 +44,21 @@ export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps
     );
   }
 
-  if (!sentiment) return null;
+  if (!sentiment) {
+    return (
+      <div className="p-5">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
+          <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0" />
+          <div className="space-y-1">
+            <p className="text-xs font-black uppercase tracking-tighter text-amber-500">Neural Engine Halted</p>
+            <p className="text-[10px] text-amber-400/70 leading-tight font-medium">
+              API Service Offline. Ensure <span className="text-amber-400">GEMINI_API_KEY</span> is configured in your environment to enable Neural Pulse analysis.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isBullish = sentiment.label === 'BULLISH';
   const isBearish = sentiment.label === 'BEARISH';

@@ -119,40 +119,40 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
     // --- LAYER 1: MARKET STATE (REGIME) ---
     const emaDiff = Math.abs(ema50[i] - ema200[i]) / ema200[i];
     const adxVal = adx[i] || 0;
-    const isTrending = adxVal > 15; // Lowered further for early detection
-    const isEmaTangled = emaDiff < 0.0001;
+    const isTrending = adxVal > 12; // Lowered from 15 for ultra-early trend detection
+    const isEmaTangled = emaDiff < 0.00008; // Tightened from 0.0001
     
     // Check momentum alignment (Fast > Med > Slow)
     const bullishAlignment = ema9[i] > ema20[i] && ema20[i] > ema50[i];
     const bearishAlignment = ema9[i] < ema20[i] && ema20[i] < ema50[i];
 
-    // Check Price Action Momentum
-    const lookback = 4; // Reactive window
+    // Check Price Action Momentum - High Reaction
+    const lookback = 3; // Reduced from 4 for faster breakout detection
     const prevWindow = candles.slice(i - lookback, i);
     const prevMax = Math.max(...prevWindow.map(c => c.high));
     const prevMin = Math.min(...prevWindow.map(c => c.low));
     
-    const isUpTrendAction = candles[i].close > prevMax || (candles[i].high > prevMax && candles[i].close > candles[i].open) || (bullishAlignment && adxVal > 20);
-    const isDownTrendAction = candles[i].close < prevMin || (candles[i].low < prevMin && candles[i].close < candles[i].open) || (bearishAlignment && adxVal > 20);
+    const isUpTrendAction = candles[i].close > prevMax || (bullishAlignment && adxVal > 15);
+    const isDownTrendAction = candles[i].close < prevMin || (bearishAlignment && adxVal > 15);
     
     let marketState: 'UP_TREND' | 'DOWN_TREND' | 'RANGE' = 'RANGE';
     if (!isEmaTangled && isTrending) {
       if (ema50[i] > ema200[i]) {
-        marketState = (isUpTrendAction || emaDiff > 0.0003) ? 'UP_TREND' : 'RANGE';
+        marketState = (isUpTrendAction || emaDiff > 0.0002) ? 'UP_TREND' : 'RANGE';
       } else if (ema50[i] < ema200[i]) {
-        marketState = (isDownTrendAction || emaDiff > 0.0003) ? 'DOWN_TREND' : 'RANGE';
+        marketState = (isDownTrendAction || emaDiff > 0.0002) ? 'DOWN_TREND' : 'RANGE';
       }
     }
 
     // --- LAYER 2: TREND BIAS ---
-    const trendBias = candles[i].close > ema200[i] ? 'BULLISH' : 'BEARISH';
+    const trendBias = marketState === 'UP_TREND' ? 'BULLISH' : marketState === 'DOWN_TREND' ? 'BEARISH' : 'NEUTRAL';
 
     // --- LAYER 3: ENTRY CONFIRMATION ---
     let type: MarketSignal['type'] = 'NO_TRADE';
     const rsiVal = rsi[i];
-    const volSurge = candles[i].volume > volEMA20[i] * 1.02; // ultra-sensitive volume surge
+    const volSurge = candles[i].volume > volEMA20[i] * 1.01; // Ultra-sensitive volume surge (lowered from 1.02)
 
-    if (marketState === 'RANGE' && adxVal < 20) {
+    if (marketState === 'RANGE' && adxVal < 15) {
       type = 'NO_TRADE';
     } else {
       const isBullishConfirmation = candles[i].close > candles[i].open;
@@ -162,17 +162,17 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
       const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge || bullishAlignment);
       const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge || bearishAlignment);
 
-      // Adaptive RSI: If trending strongly (ADX > 30), don't wait for extreme oversold
-      const buyRsiLimit = adxVal > 30 ? 68 : 62;
-      const sellRsiLimit = adxVal > 30 ? 32 : 38;
+      // Hyper-Reactive RSI limits
+      const buyRsiLimit = adxVal > 25 ? 75 : 65;
+      const sellRsiLimit = adxVal > 25 ? 25 : 35;
 
       if (trendBias === 'BULLISH' && rsiVal < buyRsiLimit && confirmedUp) {
-        if (i - lastConfirmedIndex >= 2 || lastConfirmedDir !== 'BUY') {
-          type = rsiVal < 42 ? 'STRONG_BUY' : 'BUY';
+        if (i - lastConfirmedIndex >= 1 || lastConfirmedDir !== 'BUY') {
+          type = rsiVal < 45 ? 'STRONG_BUY' : 'BUY';
         }
       } else if (trendBias === 'BEARISH' && rsiVal > sellRsiLimit && confirmedDown) {
-        if (i - lastConfirmedIndex >= 2 || lastConfirmedDir !== 'SELL') {
-          type = rsiVal > 58 ? 'STRONG_SELL' : 'SELL';
+        if (i - lastConfirmedIndex >= 1 || lastConfirmedDir !== 'SELL') {
+          type = rsiVal > 55 ? 'STRONG_SELL' : 'SELL';
         }
       } else {
         type = 'NEUTRAL';
