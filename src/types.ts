@@ -8,13 +8,13 @@ export interface OHLCCandle {
 }
 
 export interface MarketSignal {
-  type: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  type: 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL' | 'NO_TRADE';
   confidence: number;
   time: number;
   price: number;
   tp: number;
   sl: number;
-  trend: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  trend: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'RANGE';
 }
 
 export type Timeframe = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';

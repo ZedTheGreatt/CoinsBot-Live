@@ -19,6 +19,9 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
   }
 
   const isBuy = signal.type.includes('BUY');
+  const isSell = signal.type.includes('SELL');
+  const isNeutral = signal.type === 'NEUTRAL';
+  const isNoTrade = signal.type === 'NO_TRADE';
 
   return (
     <div className="flex flex-col gap-4">
@@ -29,7 +32,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
         className="bg-white/5 rounded-xl border border-white/10 p-4 sm:p-5 space-y-4 sm:space-y-5 shadow-2xl relative overflow-hidden group"
       >
         <div className="absolute top-0 right-0 p-2 opacity-5 scale-150 -rotate-12 translate-x-4 -translate-y-4">
-           {isBuy ? <TrendingUp className="w-20 h-20 text-white" /> : <TrendingDown className="w-20 h-20 text-white" />}
+           {isBuy ? <TrendingUp className="w-20 h-20 text-white" /> : isSell ? <TrendingDown className="w-20 h-20 text-white" /> : <Activity className="w-20 h-20 text-white" />}
         </div>
         
         <div className="space-y-1 relative">
@@ -37,7 +40,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
           <div className="flex items-center gap-2">
             <h4 className={cn(
               "text-3xl font-black italic",
-              isBuy ? "text-brand-green" : "text-brand-red"
+              isBuy ? "text-brand-green" : isSell ? "text-brand-red" : "text-gray-400"
             )}>
               {signal.type.replace('_', ' ')}
             </h4>
@@ -45,7 +48,7 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-3 relative">
-          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-brand-green/30 transition-colors">
+          <div className="bg-black/60 p-4 rounded-xl border border-white/5 flex flex-col items-center justify-center group-hover:border-white/20 transition-colors">
             <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest mb-1.5 leading-none opacity-60">Confidence</p>
             <div className="flex items-baseline gap-1">
               <span className="text-2xl font-mono font-black text-white italic tracking-tighter">{signal.confidence}</span>
@@ -74,12 +77,12 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
         <div className="space-y-4 relative">
           <div className="p-3 bg-black/40 rounded-xl border border-white/5 space-y-3">
              <div className="flex items-center justify-between">
-               <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest opacity-60">SENTIMENT</span>
+               <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest opacity-60">REGIME BIAS</span>
                <span className={cn(
                  "text-[10px] font-black uppercase tracking-tighter px-2 py-0.5 rounded",
-                 rsi < 40 ? "bg-brand-green/20 text-brand-green" : rsi > 60 ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
+                 signal.trend === 'BULLISH' ? "bg-brand-green/20 text-brand-green" : signal.trend === 'BEARISH' ? "bg-brand-red/20 text-brand-red" : "bg-gray-800 text-gray-400"
                )}>
-                 {rsi < 30 ? "OVERSOLD" : rsi > 70 ? "OVERBOUGHT" : rsi < 40 ? "BULLISH" : rsi > 60 ? "BEARISH" : "NEUTRAL"}
+                 {signal.trend}
                </span>
              </div>
              <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden flex">
@@ -98,19 +101,24 @@ export default function SignalCard({ signal, rsi }: SignalCardProps) {
              </div>
           </div>
 
-          <div className="flex items-center justify-between px-1">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Target Alpha</span>
-            <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500 uppercase font-bold">Max Protection</span>
-            <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+          <div className={cn(
+            "space-y-4 transition-opacity",
+            (isNoTrade || isNeutral) ? "opacity-30 pointer-events-none" : "opacity-100"
+          )}>
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[10px] text-gray-500 uppercase font-bold">Target Alpha</span>
+              <span className="text-sm font-mono font-black text-brand-green">₱{signal.tp.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-gray-500 uppercase font-bold">Max Protection</span>
+              <span className="text-sm font-mono font-black text-brand-red">₱{signal.sl.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+            </div>
           </div>
           <div className="h-px bg-white/10"></div>
           <div className="space-y-2">
-            <IndicatorItem label="Alpha Cross (EMA)" value={isBuy ? "BULL SHIFT" : "BEAR SHIFT"} color={isBuy ? 'green' : 'red'} />
-            <IndicatorItem label="Momentum Gate" value={rsi < 40 ? "RECOVERY" : rsi > 60 ? "OVEREXTENDED" : "NEUTRAL"} color={rsi < 40 ? 'green' : rsi > 60 ? 'red' : 'gray'} />
-            <IndicatorItem label="Volume Matrix" value="SPIKE CONFIRMED" color='green' />
+            <IndicatorItem label="Alpha Cross (EMA)" value={signal.trend === 'BULLISH' ? "BULL SHIFT" : signal.trend === 'BEARISH' ? "BEAR SHIFT" : "COMPRESSED"} color={signal.trend === 'BULLISH' ? 'green' : signal.trend === 'BEARISH' ? 'red' : 'gray'} />
+            <IndicatorItem label="Momentum Gate" value={rsi < 45 ? "BULL FAVORED" : rsi > 55 ? "BEAR FAVORED" : "CONSOLIDATING"} color={rsi < 45 ? 'green' : rsi > 55 ? 'red' : 'gray'} />
+            <IndicatorItem label="State Guard" value={isNoTrade ? "RESTRICTED" : "ENABLED"} color={isNoTrade ? 'red' : 'green'} />
           </div>
         </div>
       </motion.div>

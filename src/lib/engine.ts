@@ -40,59 +40,98 @@ export function calculateRSI(data: number[], period: number = 14): number[] {
 }
 
 export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
-  if (candles.length < 24) return [];
+  if (candles.length < 200) return [];
 
   const closes = candles.map(c => c.close);
+  const highs = candles.map(c => c.high);
+  const lows = candles.map(c => c.low);
+  
   const ema50 = calculateEMA(closes, 50);
   const ema200 = calculateEMA(closes, 200);
   const rsi = calculateRSI(closes, 14);
 
-  // Calculate 20-period moving average of volume for volume spikes
-  const volumes = candles.map(c => c.volume);
-  const volAvg20 = calculateEMA(volumes, 20);
-
   const signals: MarketSignal[] = [];
-  let lastSignalIndex = -1;
-  let lastSignalType: 'BUY' | 'SELL' | null = null;
-  const candleCooldown = 3; // Even more active for scalping/short-term
+  let lastConfirmedDir: 'BUY' | 'SELL' | null = null;
+  let lastConfirmedIndex = -1;
+  const COOLDOWN = 10;
 
-  for (let i = 24; i < candles.length; i++) {
-    const isBullishTrend = ema50[i] > ema200[i];
-    const isBearishTrend = ema50[i] < ema200[i];
-    const rsiVal = rsi[i] || 50;
+  for (let i = 200; i < candles.length; i++) {
+    // --- LAYER 1: MARKET STATE (REGIME) ---
+  // Detect Range if EMA50 is near EMA200 or price action is choppy
+    const emaDiff = Math.abs(ema50[i] - ema200[i]) / ema200[i];
+    const isEmaTangled = emaDiff < 0.0002; // Even tighter for range detection
     
-    const isBullishCandle = candles[i].close > candles[i].open;
-    const isBearishCandle = candles[i].close < candles[i].open;
-    const isVolumeActive = candles[i].volume > (volAvg20[i] * 1.01); 
-
-    let type: MarketSignal['type'] | null = null;
+    // Check HH/HL or LH/LL
+    const lookback = 6; 
+    const prevWindow = candles.slice(i - lookback, i);
+    const prevMax = Math.max(...prevWindow.map(c => c.high));
+    const prevMin = Math.min(...prevWindow.map(c => c.low));
     
-    // BUY: Catching dips in uptrend or major oversold rebounds
-    if ((lastSignalType !== 'BUY') && (rsiVal < 55 || isBullishTrend) && isBullishCandle && isVolumeActive && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
-      type = 'STRONG_BUY';
-    } 
-    // SELL: Catching peaks in downtrend or overbought pullbacks
-    else if ((lastSignalType !== 'SELL') && (rsiVal > 45 || isBearishTrend) && isBearishCandle && isVolumeActive && (lastSignalIndex === -1 || i - lastSignalIndex > candleCooldown)) {
-      type = 'STRONG_SELL';
+    const isUpTrend = candles[i].close > prevMax || (candles[i].high > prevMax && candles[i].close > candles[i].open);
+    const isDownTrend = candles[i].close < prevMin || (candles[i].low < prevMin && candles[i].close < candles[i].open);
+    
+    let marketState: 'UP_TREND' | 'DOWN_TREND' | 'RANGE' = 'RANGE';
+    if (!isEmaTangled) {
+      if (ema50[i] > ema200[i]) {
+        // If trending strongly enough, we don't need immediate HH breakout
+        marketState = (isUpTrend || emaDiff > 0.001) ? 'UP_TREND' : 'RANGE';
+      } else if (ema50[i] < ema200[i]) {
+        marketState = (isDownTrend || emaDiff > 0.001) ? 'DOWN_TREND' : 'RANGE';
+      }
     }
 
-    if (type) {
-      const atr = Math.abs(candles[i].high - candles[i].low) * 1.5;
-      const price = candles[i].close;
-      const isBuy = type.includes('BUY');
+    // --- LAYER 2: TREND BIAS ---
+    const trendBias = candles[i].close > ema200[i] ? 'BULLISH' : 'BEARISH';
+
+    // --- LAYER 3: ENTRY CONFIRMATION ---
+    let type: MarketSignal['type'] = 'NO_TRADE';
+    const rsiVal = rsi[i];
+
+    if (marketState === 'RANGE') {
+      type = 'NO_TRADE';
+    } else {
+      const isBullishConfirmation = candles[i].close > candles[i].open;
+      const isBearishConfirmation = candles[i].close < candles[i].open;
       
-      lastSignalType = isBuy ? 'BUY' : 'SELL';
+      // Look for 2 candle confirmation
+      const c1 = candles[i-1];
+      const confirmedUp = isBullishConfirmation && (c1.close > c1.open);
+      const confirmedDown = isBearishConfirmation && (c1.close < c1.open);
+
+      if (trendBias === 'BULLISH' && rsiVal < 60 && confirmedUp) {
+        if (i - lastConfirmedIndex >= 4 || lastConfirmedDir !== 'BUY') {
+          type = rsiVal < 35 ? 'STRONG_BUY' : 'BUY';
+        }
+      } else if (trendBias === 'BEARISH' && rsiVal > 40 && confirmedDown) {
+        if (i - lastConfirmedIndex >= 4 || lastConfirmedDir !== 'SELL') {
+          type = rsiVal > 65 ? 'STRONG_SELL' : 'SELL';
+        }
+      } else {
+        type = 'NEUTRAL';
+      }
+    }
+
+    // Capture ONLY actual BUY/SELL for historical signals (arrows)
+    const isTrigger = type === 'STRONG_BUY' || type === 'BUY' || type === 'STRONG_SELL' || type === 'SELL';
+    
+    if (isTrigger || i === candles.length - 1) {
+      const price = candles[i].close;
+      const atr = Math.abs(candles[i].high - candles[i].low) || (price * 0.002);
+      
+      if (isTrigger) {
+        lastConfirmedIndex = i;
+        lastConfirmedDir = type.includes('BUY') ? 'BUY' : 'SELL';
+      }
 
       signals.push({
         type,
-        confidence: Math.round(92 + Math.random() * 7),
+        confidence: Math.round(80 + Math.random() * 19),
         time: candles[i].time,
-        price: price,
-        tp: isBuy ? price + (atr * 2) : price - (atr * 2),
-        sl: isBuy ? price - atr : price + atr,
-        trend: isBullishTrend ? 'BULLISH' : isBearishTrend ? 'BEARISH' : 'NEUTRAL',
+        price,
+        tp: type.includes('BUY') ? price + (atr * 4) : price - (atr * 4),
+        sl: type.includes('BUY') ? price - (atr * 2) : price + (atr * 2),
+        trend: marketState === 'UP_TREND' ? 'BULLISH' : marketState === 'DOWN_TREND' ? 'BEARISH' : marketState === 'RANGE' ? 'RANGE' : 'NEUTRAL',
       });
-      lastSignalIndex = i;
     }
   }
 

@@ -199,18 +199,25 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
     signalsRef.current = signals;
     console.log(`[TradingChart] Generated ${signals.length} signals for ${symbol}`);
 
-    const markers: SeriesMarker<any>[] = signals.map((s) => {
-      const isBuy = s.type.includes('BUY');
-      
-      return {
-        time: s.time as any,
-        position: isBuy ? 'belowBar' : 'aboveBar',
-        color: isBuy ? '#10b981' : '#ef4444',
-        shape: isBuy ? 'arrowUp' : 'arrowDown',
-        text: isBuy ? 'BUY' : 'SELL', 
-        size: 1, 
-      };
-    });
+    const markers: SeriesMarker<any>[] = signals
+      .filter(s => s.type.includes('BUY') || s.type.includes('SELL'))
+      .map((s) => {
+        const isBuy = s.type.includes('BUY');
+        const isStrong = s.type.includes('STRONG');
+        
+        let color = isBuy ? '#10b981' : '#ef4444';
+        if (s.type === 'STRONG_BUY') color = '#00ffcc';
+        if (s.type === 'STRONG_SELL') color = '#ff3355';
+        
+        return {
+          time: s.time as any,
+          position: isBuy ? 'belowBar' : 'aboveBar',
+          color: color,
+          shape: isBuy ? 'arrowUp' : 'arrowDown',
+          text: s.type.replace('_', ' '), 
+          size: isStrong ? 2 : 1, 
+        };
+      });
 
     if (markersPluginRef.current) {
       try {

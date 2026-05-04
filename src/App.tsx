@@ -11,6 +11,7 @@ import { fetchKlines, fetchTicker, fetchAllTickers } from './services/marketServ
 import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity } from 'lucide-react';
 import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
+import RoadmapPanel from './components/RoadmapPanel';
 
 export default function App() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
@@ -21,6 +22,7 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSignalsOpen, setIsSignalsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [connectivity, setConnectivity] = useState<'HEALTHY' | 'SLUGGISH' | 'OFFLINE'>('HEALTHY');
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
@@ -154,7 +156,7 @@ export default function App() {
 
   // Derive Signals and RSI
   useEffect(() => {
-    if (data.length < 50) return;
+    if (data.length < 200) return;
     const s = generateSignals(data);
     setSignals(s);
     
@@ -340,19 +342,35 @@ export default function App() {
 
   return (
     <div className="h-screen-fix bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
-      <NavMenu isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+      <NavMenu 
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)} 
+        onRoadmapClick={() => {
+          setIsRoadmapOpen(true);
+          setIsSignalsOpen(false);
+          setIsAlertsOpen(false);
+        }}
+      />
       <Topbar 
         onMenuClick={() => setIsMenuOpen(true)} 
         onSignalsClick={() => {
           setIsSignalsOpen(!isSignalsOpen);
           setIsAlertsOpen(false);
+          setIsRoadmapOpen(false);
         }}
         onAlertsClick={() => {
           setIsAlertsOpen(!isAlertsOpen);
           setIsSignalsOpen(false);
+          setIsRoadmapOpen(false);
+        }}
+        onRoadmapClick={() => {
+          setIsRoadmapOpen(!isRoadmapOpen);
+          setIsSignalsOpen(false);
+          setIsAlertsOpen(false);
         }}
         isSignalsOpen={isSignalsOpen}
         isAlertsOpen={isAlertsOpen}
+        isRoadmapOpen={isRoadmapOpen}
         trend={currentSignal?.trend}
         symbol={selectedSymbol}
         connectivity={connectivity}
@@ -513,7 +531,7 @@ export default function App() {
 
             {/* Floating Signal Details Panel (Side Sheet) */}
             <AnimatePresence>
-              {(isSignalsOpen || isAlertsOpen) && (
+              {(isSignalsOpen || isAlertsOpen || isRoadmapOpen) && (
                 <>
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -522,6 +540,7 @@ export default function App() {
                     onClick={() => {
                       setIsSignalsOpen(false);
                       setIsAlertsOpen(false);
+                      setIsRoadmapOpen(false);
                     }}
                     className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-40 lg:hidden"
                   />
@@ -533,7 +552,9 @@ export default function App() {
                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                     className="fixed right-4 top-20 bottom-4 w-[calc(100%-32px)] sm:w-80 lg:w-[360px] bg-brand-bg/95 backdrop-blur-xl border border-brand-border rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] z-50 flex flex-col overflow-hidden"
                   >
-                    {isSignalsOpen ? (
+                    {isRoadmapOpen ? (
+                      <RoadmapPanel onClose={() => setIsRoadmapOpen(false)} />
+                    ) : isSignalsOpen ? (
                       <>
                         <div className="p-4 border-b border-brand-border flex items-center justify-between bg-brand-surface/50">
                           <div className="flex items-center gap-2">

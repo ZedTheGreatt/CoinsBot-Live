@@ -1,26 +1,28 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, LayoutGrid, Briefcase, BarChart3, Settings, Shield, HelpCircle, LogOut } from 'lucide-react';
+import { X, LayoutGrid, Briefcase, BarChart3, Settings, Shield, HelpCircle, LogOut, Rocket, Zap, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface NavMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onRoadmapClick: () => void;
 }
 
 const MENU_ITEMS = [
   { icon: LayoutGrid, label: 'Market Dashboard', active: true },
-  { icon: Briefcase, label: 'My Portfolio', active: false },
-  { icon: BarChart3, label: 'Trade History', active: false },
+  { icon: Zap, label: 'Signal Engine', active: false },
+  { icon: Clock, label: 'Alert History', active: false },
   { icon: Settings, label: 'Bot Settings', active: false },
 ];
 
 const SECONDARY_ITEMS = [
+  { icon: Rocket, label: 'Engine Roadmap', isRoadmap: true },
   { icon: Shield, label: 'Security' },
   { icon: HelpCircle, label: 'Help & Support' },
   { icon: LogOut, label: 'Logout' },
 ];
 
-export default function NavMenu({ isOpen, onClose }: NavMenuProps) {
+export default function NavMenu({ isOpen, onClose, onRoadmapClick }: NavMenuProps) {
   return (
     <AnimatePresence>
       {isOpen && (
@@ -78,6 +80,12 @@ export default function NavMenu({ isOpen, onClose }: NavMenuProps) {
                 {SECONDARY_ITEMS.map((item) => (
                   <button
                     key={item.label}
+                    onClick={() => {
+                      if ((item as any).isRoadmap) {
+                        onRoadmapClick();
+                        onClose();
+                      }
+                    }}
                     className="w-full flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-brand-surface text-gray-500 hover:text-white transition-all group outline-none"
                   >
                     <item.icon className="w-4 h-4 text-gray-600 group-hover:text-white" />

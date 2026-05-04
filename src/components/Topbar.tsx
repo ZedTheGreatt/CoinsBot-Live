@@ -1,18 +1,20 @@
-import { Bell, Search, Settings, User, Activity, Menu, Zap } from 'lucide-react';
+import { Bell, Search, Settings, User, Activity, Menu, Zap, Rocket } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface TopbarProps {
   onMenuClick?: () => void;
   onSignalsClick?: () => void;
   onAlertsClick?: () => void;
+  onRoadmapClick?: () => void;
   isSignalsOpen?: boolean;
   isAlertsOpen?: boolean;
+  isRoadmapOpen?: boolean;
   trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
   symbol?: string;
   connectivity?: 'HEALTHY' | 'SLUGGISH' | 'OFFLINE';
 }
 
-export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isSignalsOpen, isAlertsOpen, trend, symbol, connectivity }: TopbarProps) {
+export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, onRoadmapClick, isSignalsOpen, isAlertsOpen, isRoadmapOpen, trend, symbol, connectivity }: TopbarProps) {
   return (
     <header className="h-12 sm:h-14 border-b border-brand-border flex items-center justify-between px-3 sm:px-4 shrink-0 bg-brand-bg transition-all">
       <div className="flex items-center space-x-3 sm:space-x-6">
@@ -31,7 +33,7 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
               CoinsBot <span className="text-brand-green">Pro</span>
             </span>
             <div className="flex items-center gap-1.5 opacity-60">
-              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none shrink-0">GainzAlgo V2</span>
+              <span className="text-[8px] sm:text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none shrink-0">V2.1.0 ALPHA</span>
               <div className={cn(
                 "w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full animate-pulse",
                 connectivity === 'HEALTHY' ? "bg-brand-green" : connectivity === 'SLUGGISH' ? "bg-brand-yellow" : "bg-brand-red"
@@ -83,6 +85,19 @@ export default function Topbar({ onMenuClick, onSignalsClick, onAlertsClick, isS
         <div className="h-8 w-px bg-brand-border hidden sm:block"></div>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
+           <button 
+             onClick={onRoadmapClick}
+             title="Roadmap"
+             className={cn(
+               "hidden lg:flex p-2 sm:p-2.5 rounded-xl transition-all relative group active:scale-95",
+               isRoadmapOpen 
+                ? "bg-brand-blue text-black" 
+                : "bg-brand-surface text-gray-400 hover:text-brand-blue border border-brand-border hover:border-brand-blue/30"
+             )}
+           >
+             <Rocket className={cn("w-4 h-4", isRoadmapOpen ? "fill-current" : "")} />
+           </button>
+
            <button 
              onClick={onSignalsClick}
              title="Signals"
