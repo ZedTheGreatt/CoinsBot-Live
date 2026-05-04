@@ -78,21 +78,10 @@ export default function Topbar({
         </div>
       </div>
       
-      <div className="flex items-center space-x-3 sm:space-x-6">
+      <div className="flex items-center space-x-2 sm:space-x-6">
         <div className="hidden sm:flex flex-col items-end">
           <span className="text-[9px] text-gray-500 uppercase font-black tracking-widest leading-none mb-1 opacity-60">Connectivity</span>
           <div className="flex items-center space-x-2">
-            <button 
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className={cn(
-                "p-1 hover:bg-white/5 rounded-md text-gray-500 hover:text-white transition-all transition-duration-500",
-                isRefreshing && "animate-spin text-brand-green"
-              )}
-              title="Manual Sync"
-            >
-              <RefreshCw className="w-3 h-3" />
-            </button>
             <div className={cn(
               "w-1.5 h-1.5 rounded-full animate-pulse",
               connectivity === 'HEALTHY' ? "bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" : 
@@ -110,7 +99,19 @@ export default function Topbar({
 
         <div className="h-8 w-px bg-brand-border hidden sm:block"></div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
+           <button 
+             onClick={onRefresh}
+             disabled={isRefreshing}
+             className={cn(
+               "p-2 sm:p-2.5 rounded-xl transition-all relative group active:scale-95 bg-brand-surface border border-brand-border text-gray-400 hover:text-white",
+               isRefreshing && "text-brand-green border-brand-green/30 px-3"
+             )}
+             title="Manual Sync"
+           >
+             <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
+           </button>
+
            <button 
              onClick={onRoadmapClick}
              title="Roadmap"
