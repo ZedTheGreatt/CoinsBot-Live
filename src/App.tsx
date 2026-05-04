@@ -12,6 +12,8 @@ import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bel
 import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
+import AIPulsePanel from './components/AIPulsePanel';
+import { getMarketSentiment, AISentiment } from './services/geminiService';
 
 export default function App() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
@@ -31,6 +33,9 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
   const [activeNotification, setActiveNotification] = useState<string | null>(null);
+  const [aiSentiment, setAiSentiment] = useState<AISentiment | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const lastAiFetchTime = useRef<number>(0);
   const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number, change: number }>>({});
   const [tickerData, setTickerData] = useState<{
     priceChange: number;
@@ -163,6 +168,17 @@ export default function App() {
     const closes = data.map(d => d.close);
     const rsiValues = calculateRSI(closes, 14);
     setLastRsi(rsiValues[rsiValues.length - 1] || 50);
+
+    // AI Neural Pulse Trigger (V4)
+    const now = Date.now();
+    if (now - lastAiFetchTime.current > 300000) { // Every 5 minutes
+      lastAiFetchTime.current = now;
+      setIsAiLoading(true);
+      getMarketSentiment(data).then(s => {
+        if (s) setAiSentiment(s);
+        setIsAiLoading(false);
+      });
+    }
   }, [data]);
 
   const currentPrice = data.length > 0 ? data[data.length - 1].close : 0;
@@ -569,8 +585,10 @@ export default function App() {
                           </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8">
-                          <SignalCard signal={currentSignal} rsi={lastRsi} />
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-0 space-y-0">
+                          <AIPulsePanel sentiment={aiSentiment} isLoading={isAiLoading} />
+                          <div className="p-6 pt-2 space-y-8">
+                             <SignalCard signal={currentSignal} rsi={lastRsi} />
 
                           <div className="space-y-4 shrink-0">
                             <div className="flex items-center justify-between">
@@ -612,7 +630,8 @@ export default function App() {
                              </button>
                           </div>
                         </div>
-                      </>
+                      </div>
+                    </>
                     ) : (
                       <PriceAlertsPanel 
                         alerts={alerts}

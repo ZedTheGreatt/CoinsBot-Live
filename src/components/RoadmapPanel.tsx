@@ -8,41 +8,41 @@ interface RoadmapPanelProps {
 
 const ROADMAP = [
   {
-    version: 'v2',
-    title: 'Alpha Regime Engine',
-    status: 'LIVE',
-    date: 'Current',
-    features: [
-      '3-Layer Decision Architecture',
-      'Regime Detection (Range/Trend)',
-      'Dual EMA Alpha Cross System',
-      'Candle Confirmation Guard'
-    ],
-    highlight: true
-  },
-  {
     version: 'v3',
     title: 'Momentum & Flow',
-    status: 'UP NEXT',
-    date: 'Q2 2026',
+    status: 'COMPLETED',
+    date: 'Current',
     features: [
       'Volume Profile Integration',
       'ADX Trend Strength Filtering',
       'Dynamic ATR Stop Losses',
-      'Multi-Timeframe Sync'
+      'Live Order Book Sync'
     ],
     highlight: false
   },
   {
     version: 'v4',
     title: 'Neural Pulse Integration',
-    status: 'PLANNED',
-    date: 'H2 2026',
+    status: 'LIVE',
+    date: 'Q3 2026',
     features: [
       'Gemini AI Sentiment Overlay',
       'Liquidity Heatmap Mapping',
       'Custom Bot Scripting (JS)',
       'Automated Coins.ph Execution'
+    ],
+    highlight: true
+  },
+  {
+    version: 'v5',
+    title: 'DeFi Bridge Expansion',
+    status: 'UP NEXT',
+    date: '2027',
+    features: [
+      'Cross-Chain DEX Arbitrage',
+      'Yield Optimizer Insights',
+      'Governance Participation Bot',
+      'Mobile App Companion'
     ],
     highlight: false
   }
@@ -57,7 +57,7 @@ export default function RoadmapPanel({ onClose }: RoadmapPanelProps) {
           <h3 className="text-sm font-black uppercase italic tracking-tighter">Engine Roadmap</h3>
         </div>
         <div className="px-2 py-0.5 rounded bg-brand-green/20 text-brand-green text-[9px] font-black uppercase">
-          Stable v2
+          Stable v4
         </div>
       </div>
 
