@@ -38,6 +38,7 @@ export default function App() {
   const [aiSentiment, setAiSentiment] = useState<AISentiment | null>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const lastAiFetchTime = useRef<number>(0);
+  const lastAiSymbol = useRef<string>('');
   const lastSignalNotificationRef = useRef<Record<string, string>>({}); // Tracks last notified signal per alert
   const [allTickers, setAllTickers] = useState<Record<string, { price: number, percent: number, change: number }>>({});
   const [tickerData, setTickerData] = useState<{
@@ -181,9 +182,14 @@ export default function App() {
 
     // AI Neural Pulse Trigger (V4)
     const now = Date.now();
-    if (now - lastAiFetchTime.current > 300000) { // Every 5 minutes
+    const symbolChanged = lastAiSymbol.current !== selectedSymbol;
+    const cooldownPeriod = 300000; // 5 minutes
+
+    if (symbolChanged || (now - lastAiFetchTime.current > cooldownPeriod)) {
       lastAiFetchTime.current = now;
+      lastAiSymbol.current = selectedSymbol;
       setIsAiLoading(true);
+      setAiSentiment(null); // Clear previous sentiment while thinking
       getMarketSentiment(data).then(s => {
         if (s) setAiSentiment(s);
         setIsAiLoading(false);

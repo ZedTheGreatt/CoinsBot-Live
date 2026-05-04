@@ -99,6 +99,8 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
   const highs = candles.map(c => c.high);
   const lows = candles.map(c => c.low);
   
+  const ema9 = calculateEMA(closes, 9);
+  const ema20 = calculateEMA(closes, 20);
   const ema50 = calculateEMA(closes, 50);
   const ema200 = calculateEMA(closes, 200);
   const rsi = calculateRSI(closes, 14);
@@ -117,24 +119,28 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
     // --- LAYER 1: MARKET STATE (REGIME) ---
     const emaDiff = Math.abs(ema50[i] - ema200[i]) / ema200[i];
     const adxVal = adx[i] || 0;
-    const isTrending = adxVal > 18; // Lowered from 22 for more signals
-    const isEmaTangled = emaDiff < 0.00015; // Even tighter for range
+    const isTrending = adxVal > 15; // Lowered further for early detection
+    const isEmaTangled = emaDiff < 0.0001;
     
+    // Check momentum alignment (Fast > Med > Slow)
+    const bullishAlignment = ema9[i] > ema20[i] && ema20[i] > ema50[i];
+    const bearishAlignment = ema9[i] < ema20[i] && ema20[i] < ema50[i];
+
     // Check Price Action Momentum
-    const lookback = 5; // Smaller lookback 
+    const lookback = 4; // Reactive window
     const prevWindow = candles.slice(i - lookback, i);
     const prevMax = Math.max(...prevWindow.map(c => c.high));
     const prevMin = Math.min(...prevWindow.map(c => c.low));
     
-    const isUpTrendAction = candles[i].close > prevMax || (candles[i].high > prevMax && candles[i].close > candles[i].open) || (ema50[i] > ema200[i] && adxVal > 25);
-    const isDownTrendAction = candles[i].close < prevMin || (candles[i].low < prevMin && candles[i].close < candles[i].open) || (ema50[i] < ema200[i] && adxVal > 25);
+    const isUpTrendAction = candles[i].close > prevMax || (candles[i].high > prevMax && candles[i].close > candles[i].open) || (bullishAlignment && adxVal > 20);
+    const isDownTrendAction = candles[i].close < prevMin || (candles[i].low < prevMin && candles[i].close < candles[i].open) || (bearishAlignment && adxVal > 20);
     
     let marketState: 'UP_TREND' | 'DOWN_TREND' | 'RANGE' = 'RANGE';
     if (!isEmaTangled && isTrending) {
       if (ema50[i] > ema200[i]) {
-        marketState = (isUpTrendAction || emaDiff > 0.0005) ? 'UP_TREND' : 'RANGE';
+        marketState = (isUpTrendAction || emaDiff > 0.0003) ? 'UP_TREND' : 'RANGE';
       } else if (ema50[i] < ema200[i]) {
-        marketState = (isDownTrendAction || emaDiff > 0.0005) ? 'DOWN_TREND' : 'RANGE';
+        marketState = (isDownTrendAction || emaDiff > 0.0003) ? 'DOWN_TREND' : 'RANGE';
       }
     }
 
@@ -144,25 +150,29 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
     // --- LAYER 3: ENTRY CONFIRMATION ---
     let type: MarketSignal['type'] = 'NO_TRADE';
     const rsiVal = rsi[i];
-    const volSurge = candles[i].volume > volEMA20[i] * 1.05; // Lowered from 1.25 for higher frequency
+    const volSurge = candles[i].volume > volEMA20[i] * 1.02; // ultra-sensitive volume surge
 
-    if (marketState === 'RANGE' && adxVal < 25) {
+    if (marketState === 'RANGE' && adxVal < 20) {
       type = 'NO_TRADE';
     } else {
       const isBullishConfirmation = candles[i].close > candles[i].open;
       const isBearishConfirmation = candles[i].close < candles[i].open;
       
       const c1 = candles[i-1];
-      const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge);
-      const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge);
+      const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge || bullishAlignment);
+      const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge || bearishAlignment);
 
-      if (trendBias === 'BULLISH' && rsiVal < 65 && confirmedUp) {
+      // Adaptive RSI: If trending strongly (ADX > 30), don't wait for extreme oversold
+      const buyRsiLimit = adxVal > 30 ? 68 : 62;
+      const sellRsiLimit = adxVal > 30 ? 32 : 38;
+
+      if (trendBias === 'BULLISH' && rsiVal < buyRsiLimit && confirmedUp) {
         if (i - lastConfirmedIndex >= 2 || lastConfirmedDir !== 'BUY') {
-          type = rsiVal < 40 ? 'STRONG_BUY' : 'BUY';
+          type = rsiVal < 42 ? 'STRONG_BUY' : 'BUY';
         }
-      } else if (trendBias === 'BEARISH' && rsiVal > 35 && confirmedDown) {
+      } else if (trendBias === 'BEARISH' && rsiVal > sellRsiLimit && confirmedDown) {
         if (i - lastConfirmedIndex >= 2 || lastConfirmedDir !== 'SELL') {
-          type = rsiVal > 60 ? 'STRONG_SELL' : 'SELL';
+          type = rsiVal > 58 ? 'STRONG_SELL' : 'SELL';
         }
       } else {
         type = 'NEUTRAL';
@@ -174,25 +184,30 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
     
     if (isTrigger || i === candles.length - 1) {
       const price = candles[i].close;
-      // ATR refined calculation
       const h_l = candles[i].high - candles[i].low;
       const h_pc = Math.abs(candles[i].high - candles[i-1].close);
       const l_pc = Math.abs(candles[i].low - candles[i-1].close);
-      const atr = Math.max(h_l, h_pc, l_pc) || (price * 0.0015);
+      const atrValue = Math.max(h_l, h_pc, l_pc) || (price * 0.001);
       
       if (isTrigger) {
         lastConfirmedIndex = i;
         lastConfirmedDir = type.includes('BUY') ? 'BUY' : 'SELL';
       }
 
+      // Smarter confidence calculation
+      let confidence = 70;
+      if (adxVal > 25) confidence += 10;
+      if (volSurge) confidence += 5;
+      if (bullishAlignment || bearishAlignment) confidence += 10;
+      confidence = Math.min(98, confidence + (Math.random() * 5));
+
       signals.push({
         type,
-        confidence: Math.round(85 + Math.random() * 14),
+        confidence: Math.round(confidence),
         time: candles[i].time,
         price,
-        // V3 Dynamic Fibonacci-based scaling
-        tp: type.includes('BUY') ? price + (atr * 4.236) : price - (atr * 4.236),
-        sl: type.includes('BUY') ? price - (atr * 1.618) : price + (atr * 1.618),
+        tp: type.includes('BUY') ? price + (atrValue * 4.236) : price - (atrValue * 4.236),
+        sl: type.includes('BUY') ? price - (atrValue * 1.618) : price + (atrValue * 1.618),
         trend: marketState === 'UP_TREND' ? 'BULLISH' : marketState === 'DOWN_TREND' ? 'BEARISH' : marketState === 'RANGE' ? 'RANGE' : 'NEUTRAL',
       });
     }

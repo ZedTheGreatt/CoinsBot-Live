@@ -11,12 +11,34 @@ interface AIPulsePanelProps {
 export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps) {
   if (isLoading) {
     return (
-      <div className="p-5 space-y-4 animate-pulse">
-        <div className="h-4 w-32 bg-white/5 rounded" />
-        <div className="h-20 w-full bg-white/5 rounded-2xl" />
-        <div className="space-y-2">
-          <div className="h-3 w-full bg-white/5 rounded" />
-          <div className="h-3 w-2/3 bg-white/5 rounded" />
+      <div className="p-5 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-brand-blue/10 animate-pulse">
+              <Brain className="w-4 h-4 text-brand-blue" />
+            </div>
+            <span className="text-xs font-black uppercase tracking-tighter text-white animate-pulse">Neural Pulse</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-ping" />
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-blue">Thinking...</span>
+          </div>
+        </div>
+
+        <div className="relative h-32 bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden flex flex-col items-center justify-center space-y-3">
+          {/* Scanning line animation */}
+          <motion.div 
+            animate={{ top: ['0%', '100%', '0%'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+            className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-brand-blue to-transparent shadow-[0_0_15px_rgba(59,130,246,0.5)] z-10"
+          />
+          
+          <div className="space-y-2 w-full px-6">
+            <div className="h-2 w-1/2 bg-white/5 rounded animate-pulse" />
+            <div className="h-2 w-full bg-white/5 rounded animate-pulse delay-75" />
+            <div className="h-2 w-3/4 bg-white/5 rounded animate-pulse delay-150" />
+          </div>
+          <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest animate-pulse">Analyzing Market Patterns</p>
         </div>
       </div>
     );
