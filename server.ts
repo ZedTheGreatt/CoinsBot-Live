@@ -114,13 +114,11 @@ async function startServer() {
   // Neural Pulse AI Agent (Server-side to protect API Key)
   app.post("/api/ai/sentiment", async (req, res) => {
     const { candles } = req.body;
-    
     const groqKey = process.env.GROQ_API_KEY;
-    const geminiKeys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
     
-    if (!groqKey && geminiKeys.length === 0) {
-      console.error("[AI] No API keys configured (Groq or Gemini)");
-      return res.status(500).json({ error: "Neural Engine not configured. Please add GROQ_API_KEY or GEMINI_API_KEY." });
+    if (!groqKey) {
+      console.error("[AI] GROQ_API_KEY is missing");
+      return res.status(500).json({ error: "Neural Engine not configured. Please add GROQ_API_KEY." });
     }
 
     if (!candles || !Array.isArray(candles)) {
@@ -137,103 +135,44 @@ async function startServer() {
     }));
 
     try {
-      // 1. Try Groq first if available (requested for "near unli use")
-      if (groqKey) {
-        try {
-          const fetchResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${groqKey}`,
-              'Content-Type': 'application/json',
+      const fetchResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${groqKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            {
+              role: "system",
+              content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Provide a very concise single-sentence summary. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
             },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
-                },
-                {
-                  role: "user",
-                  content: `Analyze market: ${JSON.stringify(recentData)}`
-                }
-              ],
-              response_format: { type: "json_object" }
-            })
-          });
-
-          if (fetchResponse.ok) {
-            const result: any = await fetchResponse.json();
-            const content = result.choices?.[0]?.message?.content;
-            if (content) {
-              console.log("[AI] Analysis successful via Groq");
-              return res.json(JSON.parse(content));
+            {
+              role: "user",
+              content: `Analyze market: ${JSON.stringify(recentData)}`
             }
-          } else {
-            const errorText = await fetchResponse.text();
-            console.warn(`[AI] Groq failed, status: ${fetchResponse.status}. Error: ${errorText}`);
-          }
-        } catch (groqErr: any) {
-          console.warn(`[AI] Groq connection failed: ${groqErr.message}`);
-        }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+
+      if (!fetchResponse.ok) {
+        throw new Error(`Groq API responded with ${fetchResponse.status}`);
       }
 
-      // 2. Try Gemini fallback
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      let lastError: any = null;
-      let responseText = "";
-
-      for (const key of geminiKeys) {
-        try {
-          const ai = new (GoogleGenAI as any)({ apiKey: key });
-          const response = await ai.models.generateContent({
-            model: "gemini-3-flash-preview",
-            contents: [{ role: 'user', parts: [{ text: `Analyze market: ${JSON.stringify(recentData)}` }] }],
-            config: {
-              systemInstruction: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY.",
-              responseMimeType: "application/json",
-              responseSchema: {
-                type: Type.OBJECT,
-                required: ["score", "label", "summary", "keyFactors", "riskLevel"],
-                properties: {
-                  score: { type: Type.NUMBER },
-                  label: { type: Type.STRING, enum: ["BULLISH", "BEARISH", "NEUTRAL"] },
-                  summary: { type: Type.STRING },
-                  keyFactors: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  riskLevel: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH"] }
-                }
-              }
-            }
-          });
-
-          if (response.text) {
-            responseText = response.text;
-            break; 
-          }
-        } catch (err: any) {
-          console.warn(`[AI] Gemini key failed, trying next... Error: ${err.message}`);
-          lastError = err;
-        }
-      }
-
-      if (responseText) {
-        console.log("[AI] Analysis successful via Gemini");
-        return res.json(JSON.parse(responseText.trim()));
-      }
+      const result: any = await fetchResponse.json();
+      const content = result.choices?.[0]?.message?.content;
       
-      let errorMessage = "Failed to generate content from all available engines (Groq/Gemini)";
-      if (lastError?.message?.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
-        errorMessage = "Gemini API Key blocked: Deactivate 'HTTP Referrer' restrictions in Google Cloud Console for backend use.";
-      } else if (lastError?.message?.includes("API_KEY_INVALID")) {
-        errorMessage = "Gemini API Key invalid: Please check your configuration in Settings.";
-      }
-
-      throw new Error(errorMessage);
+      if (!content) throw new Error("No analysis received from Groq");
+      
+      console.log("[AI] Analysis successful via Groq");
+      res.json(JSON.parse(content));
     } catch (error: any) {
       console.error("[AI] Error:", error);
       res.status(500).json({ 
         error: error instanceof Error ? error.message : "Neural Engine failure", 
-        details: error instanceof Error ? error.message : String(error) 
+        details: String(error) 
       });
     }
   });

@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Brain, TrendingUp, TrendingDown, Minus, Info, ShieldAlert, Sparkles, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { AISentiment } from '../services/geminiService';
+import { AISentiment } from '../services/aiService';
 
 interface AIPulsePanelProps {
   sentiment: AISentiment | null;
@@ -52,7 +52,7 @@ export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps
           <div className="space-y-1">
             <p className="text-xs font-black uppercase tracking-tighter text-amber-500">Neural Engine Halted</p>
             <p className="text-[10px] text-amber-400/70 leading-tight font-medium">
-              {sentiment?.error || "API Service Offline. Ensure GEMINI_API_KEY is configured in your environment to enable Neural Pulse analysis."}
+              {sentiment?.error || "Neural Engine Halted. Ensure GROQ_API_KEY is configured in your environment to enable real-time pattern analysis."}
             </p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps
 
       <div className="flex items-center gap-2 opacity-40">
         <Info className="w-3 h-3 text-gray-500" />
-        <span className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.2em]">Neural Engine v4.0.1 ALPHA (Gemini Powered)</span>
+        <span className="text-[8px] text-gray-500 font-bold uppercase tracking-[0.2em]">Neural Engine v4.0.1 ALPHA (Llama Powered)</span>
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import PriceAlertsPanel from './components/PriceAlertsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
 import SettingsModal from './components/SettingsModal';
 import AIPulsePanel from './components/AIPulsePanel';
-import { getMarketSentiment, AISentiment } from './services/geminiService';
+import { getMarketSentiment, AISentiment } from './services/aiService';
 
 export default function App() {
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
