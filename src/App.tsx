@@ -198,7 +198,7 @@ export default function App() {
       lastAiSymbol.current = selectedSymbol;
       setIsAiLoading(true);
       setAiSentiment(null);
-      getMarketSentiment(data)
+      getMarketSentiment(selectedSymbol, data)
         .then(s => {
           if (s) setAiSentiment(s);
         })

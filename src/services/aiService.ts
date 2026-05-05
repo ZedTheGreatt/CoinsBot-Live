@@ -9,14 +9,14 @@ export interface AISentiment {
   error?: string;
 }
 
-export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISentiment | null> {
+export async function getMarketSentiment(symbol: string, candles: OHLCCandle[]): Promise<AISentiment | null> {
   if (candles.length < 20) return null;
 
   try {
     const response = await fetch('/api/ai/sentiment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candles }),
+      body: JSON.stringify({ symbol, candles }),
     });
 
     if (!response.ok) return null;

@@ -45,14 +45,30 @@ export default function AIPulsePanel({ sentiment, isLoading }: AIPulsePanelProps
   }
 
   if (!sentiment || sentiment.error) {
+    const isCongested = sentiment?.error?.includes("Congested") || sentiment?.error?.includes("429");
+    
     return (
       <div className="p-5">
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
-          <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0" />
+        <div className={cn(
+          "border rounded-2xl p-4 flex items-center gap-3",
+          isCongested ? "bg-brand-blue/5 border-brand-blue/20" : "bg-amber-500/10 border-amber-500/20"
+        )}>
+          {isCongested ? (
+            <Sparkles className="w-5 h-5 text-brand-blue shrink-0 animate-pulse" />
+          ) : (
+            <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0" />
+          )}
           <div className="space-y-1">
-            <p className="text-xs font-black uppercase tracking-tighter text-amber-500">Neural Engine Halted</p>
-            <p className="text-[10px] text-amber-400/70 leading-tight font-medium">
-              {sentiment?.error || "Neural Engine Halted. Ensure GROQ_API_KEY is configured in your environment to enable real-time pattern analysis."}
+            <p className={cn(
+              "text-xs font-black uppercase tracking-tighter",
+              isCongested ? "text-brand-blue" : "text-amber-500"
+            )}>
+              {isCongested ? "Engine Processing" : "Neural Engine Halted"}
+            </p>
+            <p className="text-[10px] text-gray-400 leading-tight font-medium">
+              {isCongested 
+                ? "Neural Engine is currently processing high volume. Displaying latest analysis from high-speed cache..." 
+                : (sentiment?.error || "Neural Engine Halted. Please check security configurations.")}
             </p>
           </div>
         </div>

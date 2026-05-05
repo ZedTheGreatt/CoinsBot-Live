@@ -18,9 +18,12 @@ async function startServer() {
 
   // In-memory cache for API requests
   const cache = new Map<string, { data: any, timestamp: number }>();
+  const aiCache = new Map<string, { data: any, timestamp: number, lastCandleTime: number, lastPrice: number }>();
+  
   const CACHE_TTL = {
     klines: 60000, // 1 minute
     ticker: 10000, // 10 seconds
+    ai: 300000,    // 5 minutes for AI unless price moves significantly
   };
 
   // Helper for HTTPS requests with optional caching
@@ -40,7 +43,7 @@ async function startServer() {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
           'Accept': 'application/json',
         },
-        timeout: 8000 // Reduced to 8s for faster failure/retry cycle
+        timeout: 8000
       };
 
       https.get(url, options, (res) => {
@@ -76,11 +79,10 @@ async function startServer() {
   // Health check
   app.get("/api/health", async (req, res) => {
     try {
-      // Test with a simple ticker request (3s cache for health check)
       await httpsRequest('https://api.pro.coins.ph/openapi/quote/v1/ticker/24hr?symbol=BTCPHP', 3000);
       res.json({ status: "ok", api: "connected" });
     } catch (error) {
-      res.status(503).json({ status: "error", api: "disconnected", message: error instanceof Error ? error.message : String(error) });
+      res.status(503).json({ status: "error", api: "disconnected" });
     }
   });
 
@@ -92,8 +94,7 @@ async function startServer() {
       const data = await httpsRequest(url, CACHE_TTL.klines);
       res.json(data);
     } catch (error) {
-      console.error("[Proxy] Klines exception:", error);
-      res.status(500).json({ error: "Failed to fetch klines from Coins.ph" });
+      res.status(500).json({ error: "Failed to fetch market data" });
     }
   });
 
@@ -106,14 +107,46 @@ async function startServer() {
       const data = await httpsRequest(url, CACHE_TTL.ticker);
       res.json(data);
     } catch (error) {
-      console.error("[Proxy] Ticker exception:", error);
-      res.status(500).json({ error: "Failed to fetch ticker from Coins.ph" });
+      res.status(500).json({ error: "Failed to fetch ticker data" });
     }
   });
 
+  // Helper for Groq with Rate Limit Handling (Retry logic)
+  async function groqChatCompletion(payload: any, apiKey: string, retries = 2, delay = 1000): Promise<any> {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.status === 429 && retries > 0) {
+        console.warn(`[AI] Groq 429 detected. Retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
+        return groqChatCompletion(payload, apiKey, retries - 1, delay * 2);
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Groq API Error (${response.status}): ${errorText}`);
+      }
+
+      return await response.json();
+    } catch (err) {
+      if (retries > 0) {
+        await new Promise(r => setTimeout(r, delay));
+        return groqChatCompletion(payload, apiKey, retries - 1, delay * 2);
+      }
+      throw err;
+    }
+  }
+
   // Neural Pulse AI Agent (Server-side to protect API Key)
   app.post("/api/ai/sentiment", async (req, res) => {
-    const { candles } = req.body;
+    const { candles, symbol = 'UNKNOWN' } = req.body;
     const groqKey = process.env.GROQ_API_KEY;
     
     if (!groqKey) {
@@ -121,8 +154,26 @@ async function startServer() {
       return res.status(500).json({ error: "Neural Engine not configured. Please add GROQ_API_KEY." });
     }
 
-    if (!candles || !Array.isArray(candles)) {
+    if (!candles || !Array.isArray(candles) || candles.length === 0) {
       return res.status(400).json({ error: "Invalid candle data" });
+    }
+
+    // Semantic Cache Check (Check if market has actually moved)
+    const lastCandle = candles[candles.length - 1];
+    const currentPrice = lastCandle.close;
+    const currentTime = lastCandle.time;
+    const cacheKey = `ai_sentiment_${symbol}`;
+    const cached = aiCache.get(cacheKey);
+
+    if (cached) {
+      const isStale = Date.now() - cached.timestamp > CACHE_TTL.ai;
+      const isPriceSame = Math.abs(currentPrice - cached.lastPrice) / cached.lastPrice < 0.0001; // 0.01% move
+      const isTimeSame = currentTime === cached.lastCandleTime;
+
+      if (!isStale && (isPriceSame || isTimeSame)) {
+        console.log(`[AI] Returning cached sentiment for ${symbol}`);
+        return res.json(cached.data);
+      }
     }
 
     const recentData = candles.slice(-50).map((c: any) => ({
@@ -135,43 +186,47 @@ async function startServer() {
     }));
 
     try {
-      const fetchResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${groqKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          messages: [
-            {
-              role: "system",
-              content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Provide a very concise single-sentence summary. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
-            },
-            {
-              role: "user",
-              content: `Analyze market: ${JSON.stringify(recentData)}`
-            }
-          ],
-          response_format: { type: "json_object" }
-        })
-      });
+      const result = await groqChatCompletion({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "system",
+            content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Provide a very concise single-sentence summary. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
+          },
+          {
+            role: "user",
+            content: `Analyze market: ${JSON.stringify(recentData)}`
+          }
+        ],
+        response_format: { type: "json_object" }
+      }, groqKey);
 
-      if (!fetchResponse.ok) {
-        throw new Error(`Groq API responded with ${fetchResponse.status}`);
-      }
-
-      const result: any = await fetchResponse.json();
       const content = result.choices?.[0]?.message?.content;
-      
       if (!content) throw new Error("No analysis received from Groq");
       
-      console.log("[AI] Analysis successful via Groq");
-      res.json(JSON.parse(content));
+      const parsed = JSON.parse(content);
+      
+      // Update Cache
+      aiCache.set(cacheKey, {
+        data: parsed,
+        timestamp: Date.now(),
+        lastPrice: currentPrice,
+        lastCandleTime: currentTime
+      });
+
+      console.log(`[AI] Analysis successful via Groq for ${symbol}`);
+      res.json(parsed);
     } catch (error: any) {
       console.error("[AI] Error:", error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : "Neural Engine failure", 
+      
+      // Fallback to stale cache if available
+      if (cached) {
+        console.warn("[AI] Falling back to stale cache due to error");
+        return res.json({ ...cached.data, isStale: true });
+      }
+
+      res.status(503).json({ 
+        error: error.message?.includes("429") ? "Neural Engine Congested" : "Neural Engine failure", 
         details: String(error) 
       });
     }
