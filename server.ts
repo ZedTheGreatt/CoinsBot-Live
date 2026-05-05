@@ -151,7 +151,9 @@ async function startServer() {
     
     if (!groqKey) {
       console.error("[AI] GROQ_API_KEY is missing");
-      return res.status(500).json({ error: "Neural Engine not configured. Please add GROQ_API_KEY." });
+      return res.status(500).json({ 
+        error: "Neural Engine Offline: GROQ_API_KEY is missing in your environment. Go to your project settings (AI Studio or Vercel) and add GROQ_API_KEY." 
+      });
     }
 
     if (!candles || !Array.isArray(candles) || candles.length === 0) {
@@ -176,26 +178,17 @@ async function startServer() {
       }
     }
 
-    const recentData = candles.slice(-50).map((c: any) => ({
-      t: new Date((c.time || 0) * 1000).toISOString(),
-      o: c.open,
-      h: c.high,
-      l: c.low,
-      c: c.close,
-      v: c.volume
-    }));
-
     try {
       const result = await groqChatCompletion({
-        model: "llama-3.3-70b-versatile",
+        model: "llama-3.1-8b-instant",
         messages: [
           {
             role: "system",
-            content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Provide a very concise single-sentence summary. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
+            content: "You are an elite crypto technical analyst. Respond in JSON ONLY with schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
           },
           {
             role: "user",
-            content: `Analyze market: ${JSON.stringify(recentData)}`
+            content: `Analyze (30-candle): ${JSON.stringify(candles.slice(-30).map((c: any) => [c.open, c.high, c.low, c.close, c.volume]))}`
           }
         ],
         response_format: { type: "json_object" }
