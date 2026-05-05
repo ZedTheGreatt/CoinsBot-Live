@@ -30,6 +30,7 @@ export interface PriceAlert {
   id: string;
   symbol: string;
   targetPrice?: number;
+  targetSignal?: MarketSignal['type'];
   condition: 'ABOVE' | 'BELOW' | 'SIGNAL';
   isActive: boolean;
   createdAt: number;

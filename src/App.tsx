@@ -13,6 +13,7 @@ import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
 import AIPulsePanel from './components/AIPulsePanel';
+import CryptoChatbot from './components/CryptoChatbot';
 import { getMarketSentiment, AISentiment } from './services/aiService';
 
 export default function App() {
@@ -198,7 +199,7 @@ export default function App() {
       lastAiSymbol.current = selectedSymbol;
       setIsAiLoading(true);
       setAiSentiment(null);
-      getMarketSentiment(data)
+      getMarketSentiment(selectedSymbol, data)
         .then(s => {
           if (s) setAiSentiment(s);
         })
@@ -292,10 +293,14 @@ export default function App() {
       } 
       else if (alert.condition === 'SIGNAL' && latestSignal) {
         const currentCandleTime = data[data.length - 1].time;
-        const isActionable = ['BUY', 'STRONG_BUY', 'SELL', 'STRONG_SELL'].includes(latestSignal.type);
+        // If specific signal is set, use it. Otherwise any actionable signal triggers.
+        const isMatch = alert.targetSignal 
+          ? latestSignal.type === alert.targetSignal 
+          : ['BUY', 'STRONG_BUY', 'SELL', 'STRONG_SELL'].includes(latestSignal.type);
+          
         const signalId = `${alert.id}_${latestSignal.time}_${latestSignal.type}`;
         
-        if (latestSignal.time === currentCandleTime && isActionable && lastSignalNotificationRef.current[alert.id] !== signalId) {
+        if (latestSignal.time === currentCandleTime && isMatch && lastSignalNotificationRef.current[alert.id] !== signalId) {
           lastSignalNotificationRef.current[alert.id] = signalId;
           triggeredAlerts.push(alert);
         }
@@ -332,7 +337,8 @@ export default function App() {
         const changeStr = format24hChange(latestPrice, stats24h.percent);
         
         if (alert.condition === 'SIGNAL' && latestSignal) {
-           msg = `${alert.symbol} ${latestSignal.type.replace('_', ' ')} (24H: ${changeStr})`;
+           const label = alert.targetSignal || latestSignal.type;
+           msg = `${alert.symbol} ${label.replace('_', ' ')} (24H: ${changeStr})`;
         } else {
            msg = `${alert.symbol} hit ₱${alert.targetPrice?.toLocaleString()} (24H: ${changeStr})`;
         }
@@ -452,8 +458,8 @@ export default function App() {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative">
           
           {/* Layer 1: Asset & Important Market Data */}
-          <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar scroll-smooth">
-            <div className="shrink-0 sticky left-0 z-20 bg-brand-surface pr-4 border-r border-white/5 md:border-none md:static">
+          <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory">
+            <div className="shrink-0 sticky left-0 z-20 bg-brand-surface pr-4 border-r border-white/5 md:border-none md:static snap-start">
               <CoinDropdown 
                 selectedSymbol={selectedSymbol}
                 onSymbolSelect={setSelectedSymbol}
@@ -464,7 +470,7 @@ export default function App() {
             
             <div className="flex items-center gap-6 sm:gap-10 shrink-0">
               {/* 24h Price & Change */}
-              <div className="flex flex-col border-l border-brand-border pl-6 first:border-none first:pl-0">
+              <div className="flex flex-col border-l border-brand-border pl-6 first:border-none first:pl-0 snap-start">
                 <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5 opacity-60">
                   24h Change
                 </span>
@@ -501,7 +507,7 @@ export default function App() {
               </div>
 
               {/* 24h High/Low */}
-              <div className="hidden sm:flex flex-col">
+              <div className="hidden sm:flex flex-col snap-start">
                 <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-1.5 opacity-60">
                   24h High / Low
                 </span>
@@ -522,7 +528,7 @@ export default function App() {
               </div>
 
               {/* 24h Volume */}
-              <div className="hidden lg:flex flex-col border-l border-brand-border pl-8">
+              <div className="hidden lg:flex flex-col border-l border-brand-border pl-8 snap-start">
                 <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-2 opacity-60">
                   24h Volume ({selectedSymbol})
                 </span>
@@ -541,7 +547,7 @@ export default function App() {
               </div>
 
               {/* 24h Turnover */}
-              <div className="hidden xl:flex flex-col border-l border-brand-border pl-8">
+              <div className="hidden xl:flex flex-col border-l border-brand-border pl-8 snap-start">
                 <span className="text-[9px] text-gray-400 font-black uppercase tracking-widest leading-none mb-2 opacity-60">
                   24h Turnover (PHP)
                 </span>
@@ -740,6 +746,11 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      <CryptoChatbot 
+        selectedSymbol={selectedSymbol} 
+        marketData={tickerData ? { price: allTickers[selectedSymbol + 'PHP']?.price || 0, percent: tickerData.priceChangePercent } : undefined}
+      />
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar {

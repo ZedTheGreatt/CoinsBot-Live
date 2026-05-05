@@ -144,15 +144,19 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
       }
     }
 
-    // --- LAYER 2: TREND BIAS ---
-    const trendBias = marketState === 'UP_TREND' ? 'BULLISH' : marketState === 'DOWN_TREND' ? 'BEARISH' : 'NEUTRAL';
+    // --- LAYER 2: TREND BIAS (DYNAMIC) ---
+    const fastBias = ema9[i] > ema20[i] ? 1 : -1;
+    const medBias = ema20[i] > ema50[i] ? 1 : -1;
+    const slowBias = ema50[i] > ema200[i] ? 1 : -1;
+    const biasScore = fastBias + medBias + slowBias; // -3 to +3
+    const trendBias = biasScore >= 2 ? 'BULLISH' : biasScore <= -2 ? 'BEARISH' : 'NEUTRAL';
 
     // --- LAYER 3: ENTRY CONFIRMATION ---
     let type: MarketSignal['type'] = 'NO_TRADE';
     const rsiVal = rsi[i];
-    const volSurge = candles[i].volume > volEMA20[i] * 1.01; // Ultra-sensitive volume surge (lowered from 1.02)
+    const volSurge = candles[i].volume > volEMA20[i] * 1.05; // Slightly stricter volume threshold
 
-    if (marketState === 'RANGE' && adxVal < 15) {
+    if (marketState === 'RANGE' && adxVal < 15 && Math.abs(biasScore) < 2) {
       type = 'NO_TRADE';
     } else {
       const isBullishConfirmation = candles[i].close > candles[i].open;
@@ -162,18 +166,29 @@ export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
       const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge || bullishAlignment);
       const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge || bearishAlignment);
 
-      // Hyper-Reactive RSI limits - balanced for visibility
-      const buyRsiLimit = adxVal > 25 ? 70 : 60;
-      const sellRsiLimit = adxVal > 25 ? 30 : 40;
-
-      if (trendBias === 'BULLISH' && rsiVal < buyRsiLimit && confirmedUp) {
-        // Reduced frequency: only signal every 5 candles min, or if signal type flips
+      // Dynamic Signal Logic
+      if (trendBias === 'BULLISH' && confirmedUp) {
         if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'BUY') {
-          type = rsiVal < 40 ? 'STRONG_BUY' : 'BUY';
+          // Calculate signal strength score
+          let strength = 0;
+          if (biasScore === 3) strength += 30; // Perfect EMA alignment
+          if (adxVal > 25) strength += 20;    // Strong trend
+          if (volSurge) strength += 20;       // Volume validation
+          if (rsiVal < 45) strength += 30;    // Oversold / Early entry
+          else if (rsiVal < 60) strength += 10;
+
+          type = strength >= 60 ? 'STRONG_BUY' : 'BUY';
         }
-      } else if (trendBias === 'BEARISH' && rsiVal > sellRsiLimit && confirmedDown) {
+      } else if (trendBias === 'BEARISH' && confirmedDown) {
         if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'SELL') {
-          type = rsiVal > 60 ? 'STRONG_SELL' : 'SELL';
+          let strength = 0;
+          if (biasScore === -3) strength += 30; 
+          if (adxVal > 25) strength += 20;
+          if (volSurge) strength += 20;
+          if (rsiVal > 55) strength += 30;    // Overbought / Early entry
+          else if (rsiVal > 40) strength += 10;
+
+          type = strength >= 60 ? 'STRONG_SELL' : 'SELL';
         }
       } else {
         type = 'NEUTRAL';

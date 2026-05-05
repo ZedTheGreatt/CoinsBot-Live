@@ -9,20 +9,68 @@ export interface AISentiment {
   error?: string;
 }
 
-export async function getMarketSentiment(candles: OHLCCandle[]): Promise<AISentiment | null> {
+export async function getMarketSentiment(symbol: string, candles: OHLCCandle[]): Promise<AISentiment | null> {
   if (candles.length < 20) return null;
 
   try {
     const response = await fetch('/api/ai/sentiment', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candles }),
+      body: JSON.stringify({ symbol, candles }),
     });
 
-    if (!response.ok) return null;
-    return await response.json();
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await response.json() : null;
+
+    if (!response.ok) {
+      return {
+        score: 0,
+        label: 'NEUTRAL',
+        summary: 'Neural Engine Offline',
+        keyFactors: [],
+        riskLevel: 'MEDIUM',
+        error: data?.error || `Server error: ${response.status}`
+      } as AISentiment;
+    }
+    
+    return data;
   } catch (err) {
-    console.warn("[NeuralPulse] Server proxy failed.");
-    return null;
+    console.warn("[NeuralPulse] Server proxy failed:", err);
+    return {
+      score: 0,
+       label: 'NEUTRAL',
+       summary: 'Connection Error',
+       keyFactors: [],
+       riskLevel: 'MEDIUM',
+       error: "Connection to Neural Engine failed. Please check your network."
+    } as AISentiment;
+  }
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export async function sendChatMessage(messages: ChatMessage[], symbol: string, marketData?: any): Promise<ChatMessage> {
+  try {
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, symbol, marketData }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Chat failed');
+    }
+
+    return await response.json();
+  } catch (err: any) {
+    console.error("[AiChat] Service error:", err);
+    return {
+      role: 'assistant',
+      content: `⚠️ ${err.message || 'I am currently unable to process your request. Please try again later.'}`
+    };
   }
 }

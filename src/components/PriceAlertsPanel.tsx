@@ -23,16 +23,18 @@ export default function PriceAlertsPanel({
 }: PriceAlertsPanelProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [targetPrice, setTargetPrice] = useState(currentPrice.toString());
-  const [condition, setCondition] = useState<'ABOVE' | 'BELOW'>('ABOVE');
+  const [condition, setCondition] = useState<'ABOVE' | 'BELOW' | 'SIGNAL'>('ABOVE');
+  const [selectedSignal, setSelectedSignal] = useState<PriceAlert['targetSignal']>('STRONG_BUY');
 
   const handleAdd = () => {
-    const price = parseFloat(targetPrice);
-    if (isNaN(price)) return;
+    const price = condition === 'SIGNAL' ? undefined : parseFloat(targetPrice);
+    if (condition !== 'SIGNAL' && isNaN(price!)) return;
     
     onAddAlert({
       symbol,
       targetPrice: price,
       condition,
+      targetSignal: condition === 'SIGNAL' ? selectedSignal : undefined,
     });
     setIsAdding(false);
   };
@@ -109,11 +111,11 @@ export default function PriceAlertsPanel({
               </div>
 
               <div className="space-y-3">
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button 
                     onClick={() => setCondition('ABOVE')}
                     className={cn(
-                      "flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all",
+                      "flex-1 min-w-[100px] py-2 rounded-lg text-[10px] font-black uppercase transition-all",
                       condition === 'ABOVE' ? "bg-brand-green text-black" : "bg-gray-800 text-gray-400"
                     )}
                   >
@@ -122,28 +124,56 @@ export default function PriceAlertsPanel({
                   <button 
                     onClick={() => setCondition('BELOW')}
                     className={cn(
-                      "flex-1 py-2 rounded-lg text-[10px] font-black uppercase transition-all",
+                      "flex-1 min-w-[100px] py-2 rounded-lg text-[10px] font-black uppercase transition-all",
                       condition === 'BELOW' ? "bg-brand-red text-black" : "bg-gray-800 text-gray-400"
                     )}
                   >
                     Price Crosses Under
                   </button>
+                  <button 
+                    onClick={() => setCondition('SIGNAL')}
+                    className={cn(
+                      "flex-1 min-w-[100px] py-2 rounded-lg text-[10px] font-black uppercase transition-all",
+                      condition === 'SIGNAL' ? "bg-brand-blue text-white" : "bg-gray-800 text-gray-400"
+                    )}
+                  >
+                    AI Signal Trigger
+                  </button>
                 </div>
 
-                <div className="relative">
-                  <input 
-                    type="number"
-                    value={targetPrice}
-                    onChange={(e) => setTargetPrice(e.target.value)}
-                    className="w-full bg-black border border-brand-border rounded-xl px-4 py-3 text-lg font-black font-mono focus:border-brand-yellow outline-none"
-                    placeholder="0.00"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">PHP</span>
-                </div>
+                {condition === 'SIGNAL' ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['STRONG_BUY', 'BUY', 'SELL', 'STRONG_SELL'] as const).map((sig) => (
+                      <button
+                        key={sig}
+                        onClick={() => setSelectedSignal(sig)}
+                        className={cn(
+                          "py-2 rounded-lg text-[9px] font-black uppercase border transition-all",
+                          selectedSignal === sig 
+                            ? "bg-brand-surface border-brand-yellow text-brand-yellow" 
+                            : "bg-black border-brand-border text-gray-600 hover:text-gray-400"
+                        )}
+                      >
+                        {sig.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input 
+                      type="number"
+                      value={targetPrice}
+                      onChange={(e) => setTargetPrice(e.target.value)}
+                      className="w-full bg-black border border-brand-border rounded-xl px-4 py-3 text-lg font-black font-mono focus:border-brand-yellow outline-none"
+                      placeholder="0.00"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">PHP</span>
+                  </div>
+                )}
 
                 <button 
                   onClick={handleAdd}
-                  disabled={!targetPrice || parseFloat(targetPrice) <= 0}
+                  disabled={condition !== 'SIGNAL' && (!targetPrice || parseFloat(targetPrice) <= 0)}
                   className="w-full bg-brand-yellow hover:bg-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-black py-3 rounded-xl text-xs uppercase tracking-tighter transition-all"
                 >
                   Create {symbol} Alert
@@ -178,11 +208,13 @@ export default function PriceAlertsPanel({
                         <AlertTriangle className="w-3 h-3 text-brand-red" />
                       )}
                       <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
-                        {alert.symbol} {alert.condition === 'SIGNAL' ? 'Algo Intelligence' : alert.condition === 'ABOVE' ? 'Threshold High' : 'Threshold Low'}
+                        {alert.symbol} {alert.condition === 'SIGNAL' ? 'AI Market Intelligence' : alert.condition === 'ABOVE' ? 'Threshold High' : 'Threshold Low'}
                       </span>
                     </div>
                     <span className="text-sm font-mono font-bold text-white italic">
-                      {alert.condition === 'SIGNAL' ? 'WAITING FOR ENTRY' : `₱${alert.targetPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
+                      {alert.condition === 'SIGNAL' 
+                        ? (alert.targetSignal ? `WAITING FOR ${alert.targetSignal.replace('_', ' ')}` : 'WAITING FOR ENTRY') 
+                        : `₱${alert.targetPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 })}`}
                     </span>
                   </div>
 

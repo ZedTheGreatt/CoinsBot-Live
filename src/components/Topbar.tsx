@@ -10,7 +10,7 @@ interface TopbarProps {
   isSignalsOpen?: boolean;
   isAlertsOpen?: boolean;
   isRoadmapOpen?: boolean;
-  trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  trend?: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'RANGE';
   symbol?: string;
   connectivity?: 'HEALTHY' | 'SLUGGISH' | 'OFFLINE';
   isRefreshing?: boolean;
@@ -65,11 +65,16 @@ export default function Topbar({
                  <div className={cn(
                     "px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tighter flex items-center gap-1.5 border transition-all",
                     trend === 'BULLISH' ? "bg-brand-green/10 text-brand-green border-brand-green/20" : 
-                    trend === 'BEARISH' ? "bg-brand-red/10 text-brand-red border-brand-red/20" : "bg-gray-800/50 text-gray-400 border-white/5"
+                    trend === 'BEARISH' ? "bg-brand-red/10 text-brand-red border-brand-red/20" : 
+                    trend === 'RANGE' ? "bg-brand-blue/10 text-brand-blue border-brand-blue/20" :
+                    "bg-gray-800/50 text-gray-400 border-white/5"
                  )}>
                     <div className={cn(
                       "w-1.5 h-1.5 rounded-full",
-                      trend === 'BULLISH' ? "bg-brand-green animate-pulse" : trend === 'BEARISH' ? "bg-brand-red animate-pulse" : "bg-gray-600"
+                      trend === 'BULLISH' ? "bg-brand-green animate-pulse" : 
+                      trend === 'BEARISH' ? "bg-brand-red animate-pulse" : 
+                      trend === 'RANGE' ? "bg-brand-blue animate-pulse" :
+                      "bg-gray-600"
                     )} />
                     {trend || 'NEUTRAL'}
                  </div>
