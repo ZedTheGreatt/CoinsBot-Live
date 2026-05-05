@@ -12,7 +12,6 @@ import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bel
 import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
-import SettingsModal from './components/SettingsModal';
 import AIPulsePanel from './components/AIPulsePanel';
 import { getMarketSentiment, AISentiment } from './services/aiService';
 
@@ -26,7 +25,6 @@ export default function App() {
   const [isSignalsOpen, setIsSignalsOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isRoadmapOpen, setIsRoadmapOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [connectivity, setConnectivity] = useState<'HEALTHY' | 'SLUGGISH' | 'OFFLINE'>('HEALTHY');
   const [lastUpdateTime, setLastUpdateTime] = useState<number>(Date.now());
@@ -439,7 +437,6 @@ export default function App() {
           setIsSignalsOpen(false);
           setIsAlertsOpen(false);
         }}
-        onSettingsClick={() => setIsSettingsOpen(true)}
         onRefresh={handleRefresh}
         isSignalsOpen={isSignalsOpen}
         isAlertsOpen={isAlertsOpen}
@@ -743,11 +740,6 @@ export default function App() {
           </div>
         </div>
       </main>
-
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
-      />
 
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
