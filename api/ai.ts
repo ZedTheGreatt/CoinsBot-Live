@@ -8,8 +8,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { candles } = req.body;
   
-  const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
-  if (keys.length === 0) {
+  const groqKey = process.env.GROQ_API_KEY;
+  const geminiKeys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
+
+  if (!groqKey && geminiKeys.length === 0) {
     console.error("[AI] No API keys configured");
     return res.status(500).json({ error: "API Key not configured in environment" });
   }
@@ -18,20 +20,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: "Invalid candle data" });
   }
 
-  try {
-    const recentData = candles.slice(-50).map((c: any) => ({
-      t: new Date((c.time || 0) * 1000).toISOString(),
-      o: c.open,
-      h: c.high,
-      l: c.low,
-      c: c.close,
-      v: c.volume
-    }));
+  const recentData = candles.slice(-50).map((c: any) => ({
+    t: new Date((c.time || 0) * 1000).toISOString(),
+    o: c.open,
+    h: c.high,
+    l: c.low,
+    c: c.close,
+    v: c.volume
+  }));
 
+  try {
+    // 1. Try Groq first
+    if (groqKey) {
+      try {
+        const fetchResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              {
+                role: "system",
+                content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
+              },
+              {
+                role: "user",
+                content: `Analyze market: ${JSON.stringify(recentData)}`
+              }
+            ],
+            response_format: { type: "json_object" }
+          })
+        });
+
+        if (fetchResponse.ok) {
+          const result: any = await fetchResponse.json();
+          const content = result.choices?.[0]?.message?.content;
+          if (content) {
+            return res.status(200).json(JSON.parse(content));
+          }
+        }
+      } catch (err) {
+        console.warn("[AI] Groq handler failed, falling back to Gemini...");
+      }
+    }
+
+    // 2. Gemini fallback
     let lastError: any = null;
     let responseText = "";
 
-    for (const key of keys) {
+    for (const key of geminiKeys) {
       try {
         const ai = new GoogleGenAI({ apiKey: key });
         
@@ -66,14 +106,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (!responseText) {
-      throw lastError || new Error("No response from AI");
+      let errorMessage = "Neural Engine failure";
+      if (lastError?.message?.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+        errorMessage = "Gemini API Key blocked: Deactivate 'HTTP Referrer' restrictions in Google Cloud Console for backend use.";
+      } else if (lastError?.message?.includes("API_KEY_INVALID")) {
+        errorMessage = "Gemini API Key invalid: Please check your configuration in Settings.";
+      }
+      throw new Error(errorMessage);
     }
     
     return res.status(200).json(JSON.parse(responseText.trim()));
   } catch (error: any) {
     console.error("[AI] Error:", error);
     return res.status(500).json({ 
-      error: "Neural Engine failure", 
+      error: error instanceof Error ? error.message : "Neural Engine failure", 
       details: error instanceof Error ? error.message : String(error) 
     });
   }

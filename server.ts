@@ -115,37 +115,75 @@ async function startServer() {
   app.post("/api/ai/sentiment", async (req, res) => {
     const { candles } = req.body;
     
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("[AI] GEMINI_API_KEY is missing");
-      return res.status(500).json({ error: "Neural Engine not configured. Please add GEMINI_API_KEY." });
+    const groqKey = process.env.GROQ_API_KEY;
+    const geminiKeys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
+    
+    if (!groqKey && geminiKeys.length === 0) {
+      console.error("[AI] No API keys configured (Groq or Gemini)");
+      return res.status(500).json({ error: "Neural Engine not configured. Please add GROQ_API_KEY or GEMINI_API_KEY." });
     }
 
     if (!candles || !Array.isArray(candles)) {
       return res.status(400).json({ error: "Invalid candle data" });
     }
 
-    try {
-      const { GoogleGenAI, Type } = await import("@google/genai");
-      
-      const recentData = candles.slice(-50).map((c: any) => ({
-        t: new Date((c.time || 0) * 1000).toISOString(),
-        o: c.open,
-        h: c.high,
-        l: c.low,
-        c: c.close,
-        v: c.volume
-      }));
+    const recentData = candles.slice(-50).map((c: any) => ({
+      t: new Date((c.time || 0) * 1000).toISOString(),
+      o: c.open,
+      h: c.high,
+      l: c.low,
+      c: c.close,
+      v: c.volume
+    }));
 
-      const keys = [process.env.GEMINI_API_KEY, process.env.GEMINI_API_KEY_FALLBACK].filter(Boolean) as string[];
-      
-      if (keys.length === 0) {
-        throw new Error("No API keys configured");
+    try {
+      // 1. Try Groq first if available (requested for "near unli use")
+      if (groqKey) {
+        try {
+          const fetchResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${groqKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                {
+                  role: "system",
+                  content: "You are an elite crypto technical analyst. Evaluate trends, volatility, and momentum. Be concise and professional. Respond in JSON ONLY with this schema: { \"score\": number, \"label\": \"BULLISH\"|\"BEARISH\"|\"NEUTRAL\", \"summary\": string, \"keyFactors\": string[], \"riskLevel\": \"LOW\"|\"MEDIUM\"|\"HIGH\" }"
+                },
+                {
+                  role: "user",
+                  content: `Analyze market: ${JSON.stringify(recentData)}`
+                }
+              ],
+              response_format: { type: "json_object" }
+            })
+          });
+
+          if (fetchResponse.ok) {
+            const result: any = await fetchResponse.json();
+            const content = result.choices?.[0]?.message?.content;
+            if (content) {
+              console.log("[AI] Analysis successful via Groq");
+              return res.json(JSON.parse(content));
+            }
+          } else {
+            const errorText = await fetchResponse.text();
+            console.warn(`[AI] Groq failed, status: ${fetchResponse.status}. Error: ${errorText}`);
+          }
+        } catch (groqErr: any) {
+          console.warn(`[AI] Groq connection failed: ${groqErr.message}`);
+        }
       }
 
+      // 2. Try Gemini fallback
+      const { GoogleGenAI, Type } = await import("@google/genai");
       let lastError: any = null;
       let responseText = "";
 
-      for (const key of keys) {
+      for (const key of geminiKeys) {
         try {
           const ai = new (GoogleGenAI as any)({ apiKey: key });
           const response = await ai.models.generateContent({
@@ -170,23 +208,31 @@ async function startServer() {
 
           if (response.text) {
             responseText = response.text;
-            break; // Success!
+            break; 
           }
         } catch (err: any) {
-          console.warn(`[AI] API Key failed, trying fallback if available... Error: ${err.message}`);
+          console.warn(`[AI] Gemini key failed, trying next... Error: ${err.message}`);
           lastError = err;
         }
       }
 
-      if (!responseText) {
-        throw lastError || new Error("Failed to generate content from all available keys");
+      if (responseText) {
+        console.log("[AI] Analysis successful via Gemini");
+        return res.json(JSON.parse(responseText.trim()));
       }
       
-      res.json(JSON.parse(responseText.trim()));
+      let errorMessage = "Failed to generate content from all available engines (Groq/Gemini)";
+      if (lastError?.message?.includes("API_KEY_HTTP_REFERRER_BLOCKED")) {
+        errorMessage = "Gemini API Key blocked: Deactivate 'HTTP Referrer' restrictions in Google Cloud Console for backend use.";
+      } else if (lastError?.message?.includes("API_KEY_INVALID")) {
+        errorMessage = "Gemini API Key invalid: Please check your configuration in Settings.";
+      }
+
+      throw new Error(errorMessage);
     } catch (error: any) {
       console.error("[AI] Error:", error);
       res.status(500).json({ 
-        error: "Neural Engine failure", 
+        error: error instanceof Error ? error.message : "Neural Engine failure", 
         details: error instanceof Error ? error.message : String(error) 
       });
     }

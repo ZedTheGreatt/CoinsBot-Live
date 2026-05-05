@@ -11,18 +11,22 @@ interface SettingsModalProps {
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [primaryKey, setPrimaryKey] = useState('');
   const [fallbackKey, setFallbackKey] = useState('');
+  const [groqKey, setGroqKey] = useState('');
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
     const savedPrimary = localStorage.getItem('GEMINI_API_KEY') || '';
     const savedFallback = localStorage.getItem('GEMINI_API_KEY_FALLBACK') || '';
+    const savedGroq = localStorage.getItem('GROQ_API_KEY') || '';
     setPrimaryKey(savedPrimary);
     setFallbackKey(savedFallback);
+    setGroqKey(savedGroq);
   }, [isOpen]);
 
   const handleSave = () => {
     localStorage.setItem('GEMINI_API_KEY', primaryKey.trim());
     localStorage.setItem('GEMINI_API_KEY_FALLBACK', fallbackKey.trim());
+    localStorage.setItem('GROQ_API_KEY', groqKey.trim());
     setIsSaved(true);
     setTimeout(() => {
       setIsSaved(false);
@@ -76,17 +80,27 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   <Info className="w-5 h-5 text-brand-blue shrink-0 mt-0.5" />
                   <div className="space-y-2">
                     <p className="text-xs text-gray-300 leading-relaxed font-medium">
-                      Neural Pulse uses <span className="text-brand-blue font-bold">Google Gemini AI</span> to provide autonomous market analysis. 
+                      Neural Pulse uses <span className="text-brand-blue font-bold">Groq & Gemini AI</span> to provide autonomous market analysis. 
                       Your API keys are stored <span className="text-white underline decoration-brand-blue/30 underline-offset-2">locally in your browser</span> and are used only for signal generation.
                     </p>
-                    <a 
-                      href="https://aistudio.google.com/app/apikey" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-brand-blue hover:underline tracking-widest"
-                    >
-                      Get your free Gemini Key <ExternalLink className="w-3 h-3" />
-                    </a>
+                    <div className="flex flex-wrap gap-4">
+                      <a 
+                        href="https://console.groq.com/keys" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-brand-green hover:underline tracking-widest"
+                      >
+                        Get Groq (Llama 3) Key <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <a 
+                        href="https://aistudio.google.com/app/apikey" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-brand-blue hover:underline tracking-widest"
+                      >
+                        Get Gemini (Flash) Key <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -96,6 +110,25 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">
                     <Key className="w-3 h-3 text-brand-green" />
+                    Groq API Key (Recommended - llama-3.3-70b)
+                  </label>
+                  <div className="relative group">
+                    <input 
+                      type="password"
+                      value={groqKey}
+                      onChange={(e) => setGroqKey(e.target.value)}
+                      placeholder="Enter Groq Key..."
+                      className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm font-mono text-gray-200 outline-none focus:border-brand-green/50 transition-all placeholder:text-gray-700"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
+                      {groqKey && <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" />}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[10px] font-black uppercase text-gray-400 tracking-widest ml-1">
+                    <Key className="w-3 h-3 text-brand-blue" />
                     Primary Gemini Key
                   </label>
                   <div className="relative group">
@@ -104,10 +137,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       value={primaryKey}
                       onChange={(e) => setPrimaryKey(e.target.value)}
                       placeholder="Enter AI Studio Key (Standard)..."
-                      className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm font-mono text-gray-200 outline-none focus:border-brand-green/50 transition-all placeholder:text-gray-700"
+                      className="w-full bg-brand-bg border border-brand-border rounded-xl px-4 py-3 text-sm font-mono text-gray-200 outline-none focus:border-brand-blue/50 transition-all placeholder:text-gray-700"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-2">
-                      {primaryKey && <div className="w-2 h-2 rounded-full bg-brand-green shadow-[0_0_8px_rgba(16,185,129,0.5)]" />}
+                      {primaryKey && <div className="w-2 h-2 rounded-full bg-brand-blue shadow-[0_0_8px_rgba(59,130,246,0.5)]" />}
                     </div>
                   </div>
                 </div>
@@ -130,13 +163,30 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
 
               {/* Security Note */}
-              <div className="flex items-start gap-3 p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-400/70 font-medium leading-tight">
-                  <span className="text-amber-500 font-black uppercase tracking-tighter block mb-1">Local Encryption Warning</span>
-                  These keys are stored in your browser's local storage. Do not share your URL with anyone if you have entered high-limit keys. 
-                  Use free tier keys from <span className="text-amber-400 italic">aistudio.google.com</span> for best safety.
-                </p>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-start gap-3 p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-400/70 font-medium leading-tight">
+                    <span className="text-amber-500 font-black uppercase tracking-tighter block mb-1">Local Encryption Warning</span>
+                    These keys are stored in your browser's local storage. Do not share your URL with anyone if you have entered high-limit keys. 
+                    Use free tier keys from <span className="text-amber-400 italic">aistudio.google.com</span> for best safety.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl space-y-2">
+                  <h4 className="text-[10px] font-black uppercase text-red-500 tracking-widest flex items-center gap-2">
+                    <Info className="w-3 h-3" />
+                    Troubleshooting Errors
+                  </h4>
+                  <ul className="space-y-1.5">
+                    <li className="text-[10px] text-gray-400 leading-tight">
+                      <span className="text-white font-bold">Referer Blocked:</span> Go to Google Cloud Console, find your key, and <span className="text-red-400">disable "HTTP Referrer" restrictions</span> or add your deployment domain.
+                    </li>
+                    <li className="text-[10px] text-gray-400 leading-tight">
+                      <span className="text-white font-bold">Invalid Key:</span> Ensure you copied the full key from AI Studio and didn't include extra spaces.
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
 
