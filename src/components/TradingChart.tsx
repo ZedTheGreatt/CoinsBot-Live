@@ -339,8 +339,22 @@ export default function TradingChart({ data, symbol }: TradingChartProps) {
             <div className="flex items-center gap-2">
               <span className="text-[10px] sm:text-[11px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
                 <Activity className="w-3 h-3 text-brand-green" />
-                CoinsBot <span className="text-brand-green">GainzAlgo V2</span>
+                CoinsBot <span className="text-brand-green">RegimeEngine v1</span>
               </span>
+              {signalsRef.current.length > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="px-1.5 py-0.5 rounded bg-brand-green/10 border border-brand-green/20">
+                    <span className="text-[9px] font-black text-brand-green tracking-widest uppercase">
+                      Gainz: {signalsRef.current[signalsRef.current.length - 1].regime?.gainzScore || 0}%
+                    </span>
+                  </div>
+                  <div className="px-1.5 py-0.5 rounded bg-brand-blue/10 border border-brand-blue/20">
+                     <span className="text-[9px] font-black text-brand-blue tracking-widest uppercase">
+                        State: {signalsRef.current[signalsRef.current.length - 1].regime?.bias || 'N/A'}
+                     </span>
+                  </div>
+                </div>
+              )}
             </div>
          </div>
       </div>

@@ -7,6 +7,21 @@ export interface OHLCCandle {
   volume: number;
 }
 
+export interface MarketRegime {
+  bullishContinuation: number;
+  bearishContinuation: number;
+  reversalChance: number;
+  sideways: number;
+  bias: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  confidence: 'LOW' | 'MEDIUM' | 'HIGH';
+  momentum: 'Weak' | 'Medium' | 'Strong';
+  gainzScore: number;
+  traps?: {
+    bull: boolean;
+    bear: boolean;
+  };
+}
+
 export interface MarketSignal {
   type: 'STRONG_BUY' | 'BUY' | 'NEUTRAL' | 'SELL' | 'STRONG_SELL' | 'NO_TRADE';
   confidence: number;
@@ -15,6 +30,7 @@ export interface MarketSignal {
   tp: number;
   sl: number;
   trend: 'BULLISH' | 'BEARISH' | 'NEUTRAL' | 'RANGE';
+  regime?: MarketRegime;
 }
 
 export type Timeframe = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';

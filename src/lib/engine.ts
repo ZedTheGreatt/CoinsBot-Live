@@ -1,230 +1,230 @@
-import { OHLCCandle, MarketSignal } from '../types';
 
-export function calculateEMA(data: number[], period: number): number[] {
-  const emas: number[] = [];
-  const k = 2 / (period + 1);
-  let ema = data[0];
-  emas.push(ema);
+import { OHLCCandle, MarketSignal, MarketRegime } from '../types';
+import { 
+  calculateEMA, 
+  calculateRSI, 
+  calculateMACD, 
+  calculateADX, 
+  detectStructure, 
+  detectDivergence, 
+  detectCandlePattern, 
+  findSRZones 
+} from './indicators';
 
-  for (let i = 1; i < data.length; i++) {
-    ema = data[i] * k + ema * (1 - k);
-    emas.push(ema);
-  }
-  return emas;
-}
+export { calculateEMA, calculateRSI, calculateMACD, calculateADX, detectStructure, detectDivergence, detectCandlePattern, findSRZones };
 
-export function calculateRSI(data: number[], period: number = 14): number[] {
-  const rsis: number[] = [];
-  let gains: number[] = [];
-  let losses: number[] = [];
-
-  for (let i = 1; i < data.length; i++) {
-    const diff = data[i] - data[i - 1];
-    gains.push(Math.max(0, diff));
-    losses.push(Math.max(0, -diff));
-  }
-
-  let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
-
-  // Padding
-  for(let i=0; i < period; i++) rsis.push(50);
-
-  for (let i = period; i < data.length - 1; i++) {
-    avgGain = (avgGain * (period - 1) + gains[i]) / period;
-    avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
-    rsis.push(100 - 100 / (1 + avgGain / (avgLoss || 1)));
+export function judgeMarketRegime(candles: OHLCCandle[], index: number): MarketRegime {
+  const window = 200;
+  if (index < window) {
+    return {
+      bullishContinuation: 25,
+      bearishContinuation: 25,
+      reversalChance: 25,
+      sideways: 25,
+      bias: 'NEUTRAL',
+      confidence: 'LOW',
+      momentum: 'Weak',
+      gainzScore: 0
+    };
   }
 
-  return rsis;
-}
+  const closes = candles.map(c => c.close);
+  const volumes = candles.map(c => c.volume);
+  
+  const ema50 = calculateEMA(closes, 50);
+  const ema200 = calculateEMA(closes, 200);
+  const rsi = calculateRSI(closes, 14);
+  const { histogram } = calculateMACD(closes);
+  const adx = calculateADX(candles, 14);
+  
+  const price = closes[index];
+  const e50 = ema50[index];
+  const e200 = ema200[index];
+  const rVal = rsi[index];
+  const macdHist = histogram[index];
+  const adxVal = adx[index];
+  const vol = volumes[index];
+  const volEMA20 = calculateEMA(volumes, 20)[index];
 
-export function calculateADX(candles: OHLCCandle[], period: number = 14): number[] {
-  const adxs: number[] = [];
-  const trs: number[] = [];
-  const plusDIs: number[] = [];
-  const minusDIs: number[] = [];
+  // 1. Trend Detection
+  const isEMAUP = e50 > e200;
+  const isPriceAboveEMA50 = price > e50;
+  const structure = detectStructure(candles, index);
+  
+  let trendScore = 0;
+  if (isEMAUP && isPriceAboveEMA50) trendScore += 15;
+  if (structure === 'HH' || structure === 'HL') trendScore += 10;
+  if (!isEMAUP && !isPriceAboveEMA50) trendScore -= 15;
+  if (structure === 'LL' || structure === 'LH') trendScore -= 10;
 
-  for (let i = 1; i < candles.length; i++) {
-    const high = candles[i].high;
-    const low = candles[i].low;
-    const prevClose = candles[i-1].close;
-    const prevHigh = candles[i-1].high;
-    const prevLow = candles[i-1].low;
+  // 2. Momentum
+  let momentumScore = 0;
+  const rsiRising = rVal > rsi[index - 1];
+  const macdRising = macdHist > histogram[index - 1];
+  const volRising = vol > volEMA20;
 
-    const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-    trs.push(tr);
+  if (rVal > 50 && rsiRising) momentumScore += 10;
+  if (macdHist > 0 && macdRising) momentumScore += 5;
+  if (volRising && closes[index] > candles[index-1].close) momentumScore += 5;
 
-    const upMove = high - prevHigh;
-    const downMove = prevLow - low;
+  if (rVal < 50 && !rsiRising) momentumScore -= 10;
+  if (macdHist < 0 && !macdRising) momentumScore -= 5;
+  if (volRising && closes[index] < candles[index-1].close) momentumScore -= 5;
 
-    plusDIs.push(upMove > downMove && upMove > 0 ? upMove : 0);
-    minusDIs.push(downMove > upMove && downMove > 0 ? downMove : 0);
+  // 3. Reversal Detection
+  const divergence = detectDivergence(closes, rsi, index);
+  const pattern = detectCandlePattern(candles, index);
+  const { support, resistance } = findSRZones(candles, index, 50);
+  
+  let reversalSignals = 0;
+  // Bullish Reversal
+  if (price <= support * 1.01 && rVal < 35) reversalSignals += 1;
+  if (divergence === 'BULLISH') reversalSignals += 1;
+  if (pattern === 'HAMMER' || pattern === 'BULLISH_ENGULFING') reversalSignals += 1;
+  const volSpike = vol > volEMA20 * 1.5;
+  if (volSpike && (pattern === 'HAMMER' || pattern === 'BULLISH_ENGULFING')) reversalSignals += 1;
+
+  // Bearish Reversal
+  if (price >= resistance * 0.99 && rVal > 65) reversalSignals += 1;
+  if (divergence === 'BEARISH') reversalSignals += 1;
+  if (pattern === 'SHOOTING_STAR' || pattern === 'BEARISH_ENGULFING') reversalSignals += 1;
+  if (volSpike && (pattern === 'SHOOTING_STAR' || pattern === 'BEARISH_ENGULFING')) reversalSignals += 1;
+
+  // 4. Trap Detection
+  let trapBull = false;
+  let trapBear = false;
+  // Bull trap: Breaks resistance briefly, quickly closes below
+  if (candles[index-1].high > resistance && price < resistance && vol < volEMA20) trapBull = true;
+  // Bear trap: Breaks support briefly, sharp recovery
+  if (candles[index-1].low < support && price > support && vol > volEMA20) trapBear = true;
+
+  // 5. Calculate Probabilities
+  let bullishCont = 0;
+  let bearishCont = 0;
+  let reversalChance = 0;
+  let sideways = 0;
+
+  // Simple Logic for Probabilities
+  if (trendScore > 0) {
+    bullishCont = 40 + trendScore + (momentumScore > 0 ? momentumScore : 0);
+    bearishCont = 10 - trendScore / 5;
+    reversalChance = reversalSignals * 15;
+  } else if (trendScore < 0) {
+    bearishCont = 40 + Math.abs(trendScore) + (momentumScore < 0 ? Math.abs(momentumScore) : 0);
+    bullishCont = 10 - Math.abs(trendScore) / 5;
+    reversalChance = reversalSignals * 15;
+  } else {
+    sideways = 60;
+    bullishCont = 20;
+    bearishCont = 20;
+    reversalChance = reversalSignals * 10;
   }
 
-  // Padding for initial period
-  for (let i = 0; i < period; i++) adxs.push(0);
+  // Normalize
+  const total = bullishCont + bearishCont + reversalChance + sideways;
+  bullishCont = Math.round((bullishCont / total) * 100);
+  bearishCont = Math.round((bearishCont / total) * 100);
+  reversalChance = Math.round((reversalChance / total) * 100);
+  sideways = Math.round((sideways / total) * 100);
 
-  let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  let plusSDI = plusDIs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  let minusSDI = minusDIs.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  // 6. Gainz Score Upgrade
+  // Trend (25) + Momentum (20) + Volume (15) + Pattern (15) + S/R (15) + Reversal (+- 10)
+  let gainzScore = 0;
+  
+  // Trend (0-25)
+  if (trendScore > 15) gainzScore += 25;
+  else if (trendScore > 0) gainzScore += 15;
+  else if (trendScore < -15) gainzScore += 10; // Still scores some for bearish opportunity? No, usually bots score "buy" strength.
+  
+  // Actually, Gainz Score 0-100 where high is good for the CURRENT bias.
+  // Let's redefine: gainzScore is "Opportunity Strength"
+  
+  let opportunityStrength = 0;
+  // Trend alignment
+  if (isEMAUP && isPriceAboveEMA50) opportunityStrength += 25;
+  else if (!isEMAUP && !isPriceAboveEMA50) opportunityStrength += 25; // Trend alignment for shorting too?
+  
+  // Let's stick to the prompt's components
+  let scoreTrend = (Math.abs(trendScore) / 25) * 25;
+  let scoreMomentum = (Math.abs(momentumScore) / 20) * 20;
+  let scoreVolume = volRising ? 15 : 0;
+  let scorePattern = pattern !== 'NONE' ? 15 : 0;
+  let scoreSR = (price <= support * 1.02 || price >= resistance * 0.98) ? 15 : 5;
+  let scoreReversal = reversalSignals * 5; // Adjustment
+  
+  gainzScore = Math.min(100, scoreTrend + scoreMomentum + scoreVolume + scorePattern + scoreSR + scoreReversal);
 
-  const dxValues: number[] = [];
-
-  for (let i = period; i < trs.length; i++) {
-    atr = (atr * (period - 1) + trs[i]) / period;
-    plusSDI = (plusSDI * (period - 1) + plusDIs[i]) / period;
-    minusSDI = (minusSDI * (period - 1) + minusDIs[i]) / period;
-
-    const diPlus = (plusSDI / (atr || 1)) * 100;
-    const diMinus = (minusSDI / (atr || 1)) * 100;
-    const dx = Math.abs(diPlus - diMinus) / (Math.abs(diPlus + diMinus) || 1) * 100;
-    dxValues.push(dx);
-
-    if (dxValues.length >= period) {
-      const adx = dxValues.slice(-period).reduce((a, b) => a + b, 0) / period;
-      adxs.push(adx);
-    } else {
-      adxs.push(dx);
+  return {
+    bullishContinuation: bullishCont,
+    bearishContinuation: bearishCont,
+    reversalChance: reversalChance,
+    sideways: sideways,
+    bias: trendScore > 10 ? 'BULLISH' : trendScore < -10 ? 'BEARISH' : 'NEUTRAL',
+    confidence: gainzScore > 75 ? 'HIGH' : gainzScore > 50 ? 'MEDIUM' : 'LOW',
+    momentum: Math.abs(momentumScore) > 15 ? 'Strong' : Math.abs(momentumScore) > 5 ? 'Medium' : 'Weak',
+    gainzScore: Math.round(gainzScore),
+    traps: {
+      bull: trapBull,
+      bear: trapBear
     }
-  }
-
-  return adxs;
+  };
 }
 
 export function generateSignals(candles: OHLCCandle[]): MarketSignal[] {
   if (candles.length < 200) return [];
 
-  const closes = candles.map(c => c.close);
-  const highs = candles.map(c => c.high);
-  const lows = candles.map(c => c.low);
-  
-  const ema9 = calculateEMA(closes, 9);
-  const ema20 = calculateEMA(closes, 20);
-  const ema50 = calculateEMA(closes, 50);
-  const ema200 = calculateEMA(closes, 200);
-  const rsi = calculateRSI(closes, 14);
-  const adx = calculateADX(candles, 14);
-
-  // Volume Profile simulation
-  const volumes = candles.map(c => c.volume);
-  const volEMA20 = calculateEMA(volumes, 20);
-
   const signals: MarketSignal[] = [];
   let lastConfirmedDir: 'BUY' | 'SELL' | null = null;
   let lastConfirmedIndex = -1;
-  const COOLDOWN = 10;
 
   for (let i = 200; i < candles.length; i++) {
-    // --- LAYER 1: MARKET STATE (REGIME) ---
-    const emaDiff = Math.abs(ema50[i] - ema200[i]) / ema200[i];
-    const adxVal = adx[i] || 0;
-    const isTrending = adxVal > 12; // Lowered from 15 for ultra-early trend detection
-    const isEmaTangled = emaDiff < 0.00008; // Tightened from 0.0001
+    const regime = judgeMarketRegime(candles, i);
+    const price = candles[i].close;
     
-    // Check momentum alignment (Fast > Med > Slow)
-    const bullishAlignment = ema9[i] > ema20[i] && ema20[i] > ema50[i];
-    const bearishAlignment = ema9[i] < ema20[i] && ema20[i] < ema50[i];
-
-    // Check Price Action Momentum - High Reaction
-    const lookback = 3; // Reduced from 4 for faster breakout detection
-    const prevWindow = candles.slice(i - lookback, i);
-    const prevMax = Math.max(...prevWindow.map(c => c.high));
-    const prevMin = Math.min(...prevWindow.map(c => c.low));
+    // --- Signal Rules ---
+    // Only generate signals when:
+    // Confidence ≥ 65% (mapped from gainzScore for simplicity or use gainzScore)
+    // No conflicting trend signals
+    // Volume supports direction
+    // Not in low volatility chop zone
     
-    const isUpTrendAction = candles[i].close > prevMax || (bullishAlignment && adxVal > 15);
-    const isDownTrendAction = candles[i].close < prevMin || (bearishAlignment && adxVal > 15);
+    let type: MarketSignal['type'] = 'NEUTRAL';
+    const canTrade = regime.gainzScore >= 65 && regime.sideways < 20;
     
-    let marketState: 'UP_TREND' | 'DOWN_TREND' | 'RANGE' = 'RANGE';
-    if (!isEmaTangled && isTrending) {
-      if (ema50[i] > ema200[i]) {
-        marketState = (isUpTrendAction || emaDiff > 0.0002) ? 'UP_TREND' : 'RANGE';
-      } else if (ema50[i] < ema200[i]) {
-        marketState = (isDownTrendAction || emaDiff > 0.0002) ? 'DOWN_TREND' : 'RANGE';
-      }
+    if (canTrade) {
+       if (regime.bias === 'BULLISH' && (regime.bullishContinuation > 50 || (regime.reversalChance > 30 && regime.bearishContinuation < 20))) {
+         if (i - lastConfirmedIndex >= 10 || lastConfirmedDir !== 'BUY') {
+           type = regime.gainzScore >= 80 ? 'STRONG_BUY' : 'BUY';
+         }
+       } else if (regime.bias === 'BEARISH' && (regime.bearishContinuation > 50 || (regime.reversalChance > 30 && regime.bullishContinuation < 20))) {
+         if (i - lastConfirmedIndex >= 10 || lastConfirmedDir !== 'SELL') {
+           type = regime.gainzScore >= 80 ? 'STRONG_SELL' : 'SELL';
+         }
+       }
     }
 
-    // --- LAYER 2: TREND BIAS (DYNAMIC) ---
-    const fastBias = ema9[i] > ema20[i] ? 1 : -1;
-    const medBias = ema20[i] > ema50[i] ? 1 : -1;
-    const slowBias = ema50[i] > ema200[i] ? 1 : -1;
-    const biasScore = fastBias + medBias + slowBias; // -3 to +3
-    const trendBias = biasScore >= 2 ? 'BULLISH' : biasScore <= -2 ? 'BEARISH' : 'NEUTRAL';
-
-    // --- LAYER 3: ENTRY CONFIRMATION ---
-    let type: MarketSignal['type'] = 'NO_TRADE';
-    const rsiVal = rsi[i];
-    const volSurge = candles[i].volume > volEMA20[i] * 1.05; // Slightly stricter volume threshold
-
-    if (marketState === 'RANGE' && adxVal < 15 && Math.abs(biasScore) < 2) {
-      type = 'NO_TRADE';
-    } else {
-      const isBullishConfirmation = candles[i].close > candles[i].open;
-      const isBearishConfirmation = candles[i].close < candles[i].open;
-      
-      const c1 = candles[i-1];
-      const confirmedUp = isBullishConfirmation && (c1.close > c1.open || volSurge || bullishAlignment);
-      const confirmedDown = isBearishConfirmation && (c1.close < c1.open || volSurge || bearishAlignment);
-
-      // Dynamic Signal Logic
-      if (trendBias === 'BULLISH' && confirmedUp) {
-        if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'BUY') {
-          // Calculate signal strength score
-          let strength = 0;
-          if (biasScore === 3) strength += 30; // Perfect EMA alignment
-          if (adxVal > 25) strength += 20;    // Strong trend
-          if (volSurge) strength += 20;       // Volume validation
-          if (rsiVal < 45) strength += 30;    // Oversold / Early entry
-          else if (rsiVal < 60) strength += 10;
-
-          type = strength >= 60 ? 'STRONG_BUY' : 'BUY';
-        }
-      } else if (trendBias === 'BEARISH' && confirmedDown) {
-        if (i - lastConfirmedIndex >= 5 || lastConfirmedDir !== 'SELL') {
-          let strength = 0;
-          if (biasScore === -3) strength += 30; 
-          if (adxVal > 25) strength += 20;
-          if (volSurge) strength += 20;
-          if (rsiVal > 55) strength += 30;    // Overbought / Early entry
-          else if (rsiVal > 40) strength += 10;
-
-          type = strength >= 60 ? 'STRONG_SELL' : 'SELL';
-        }
-      } else {
-        type = 'NEUTRAL';
-      }
-    }
-
-    // Capture ONLY actual BUY/SELL for historical signals (arrows)
-    const isTrigger = type === 'STRONG_BUY' || type === 'BUY' || type === 'STRONG_SELL' || type === 'SELL';
+    const isTrigger = type !== 'NEUTRAL';
     
     if (isTrigger || i === candles.length - 1) {
-      const price = candles[i].close;
       const h_l = candles[i].high - candles[i].low;
       const h_pc = Math.abs(candles[i].high - candles[i-1].close);
       const l_pc = Math.abs(candles[i].low - candles[i-1].close);
       const atrValue = Math.max(h_l, h_pc, l_pc) || (price * 0.001);
-      
+
       if (isTrigger) {
         lastConfirmedIndex = i;
         lastConfirmedDir = type.includes('BUY') ? 'BUY' : 'SELL';
       }
 
-      // Smarter confidence calculation
-      let confidence = 70;
-      if (adxVal > 25) confidence += 10;
-      if (volSurge) confidence += 5;
-      if (bullishAlignment || bearishAlignment) confidence += 10;
-      confidence = Math.min(98, confidence + (Math.random() * 5));
-
       signals.push({
         type,
-        confidence: Math.round(confidence),
+        confidence: regime.gainzScore,
         time: candles[i].time,
         price,
-        tp: type.includes('BUY') ? price + (atrValue * 4.236) : price - (atrValue * 4.236),
-        sl: type.includes('BUY') ? price - (atrValue * 1.618) : price + (atrValue * 1.618),
-        trend: marketState === 'UP_TREND' ? 'BULLISH' : marketState === 'DOWN_TREND' ? 'BEARISH' : marketState === 'RANGE' ? 'RANGE' : 'NEUTRAL',
+        tp: type.includes('BUY') ? price + (atrValue * 4) : price - (atrValue * 4),
+        sl: type.includes('BUY') ? price - (atrValue * 2) : price + (atrValue * 2),
+        trend: regime.bias === 'BULLISH' ? 'BULLISH' : regime.bias === 'BEARISH' ? 'BEARISH' : 'RANGE',
+        regime: regime
       });
     }
   }
