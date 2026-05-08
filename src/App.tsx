@@ -1,14 +1,15 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import Topbar from './components/Topbar';
 import TradingChart from './components/TradingChart';
 import SignalCard from './components/SignalCard';
 import CoinDropdown from './components/CoinDropdown';
-import NavMenu from './components/NavMenu';
-import { OHLCCandle, MarketSignal, SUPPORTED_COINS, Timeframe, PriceAlert } from './types';
+import { OHLCCandle, MarketSignal, SUPPORTED_COINS, Timeframe, PriceAlert, AppView } from './types';
 import { generateSignals, calculateRSI } from './lib/engine';
 import { fetchKlines, fetchTicker, fetchAllTickers } from './services/marketService';
-import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity } from 'lucide-react';
+import { LayoutGrid, TrendingUp, TrendingDown, Zap, Clock, Smartphone, Info, Bell, Volume2, VolumeX, X, Menu, Activity, ShieldAlert, BarChart3, Wallet, FlaskConical, Cpu, Settings, LineChart } from 'lucide-react';
 import { cn, format24hChange } from './lib/utils';
 import PriceAlertsPanel from './components/PriceAlertsPanel';
 import RoadmapPanel from './components/RoadmapPanel';
@@ -17,7 +18,9 @@ import CryptoChatbot from './components/CryptoChatbot';
 import { getMarketSentiment, AISentiment } from './services/aiService';
 
 export default function App() {
+  const [activeView, setActiveView] = useState<AppView>('chart');
   const [selectedSymbol, setSelectedSymbol] = useState('BTC');
+// ... existing states ...
   const [timeframe, setTimeframe] = useState<Timeframe>('1H');
   const [data, setData] = useState<OHLCCandle[]>([]);
   const [signals, setSignals] = useState<MarketSignal[]>([]);
@@ -417,47 +420,96 @@ export default function App() {
 
   return (
     <div className="h-screen-fix bg-brand-bg text-brand-text font-sans overflow-hidden flex flex-col selection:bg-brand-green/30">
-      <NavMenu 
-        isOpen={isMenuOpen} 
-        onClose={() => setIsMenuOpen(false)} 
-        onRoadmapClick={() => {
-          setIsRoadmapOpen(true);
-          setIsSignalsOpen(false);
-          setIsAlertsOpen(false);
-        }}
-      />
-      <Topbar 
-        onMenuClick={() => setIsMenuOpen(true)} 
-        onSignalsClick={() => {
-          setIsSignalsOpen(!isSignalsOpen);
-          setIsAlertsOpen(false);
-          setIsRoadmapOpen(false);
-        }}
-        onAlertsClick={() => {
-          setIsAlertsOpen(!isAlertsOpen);
-          setIsSignalsOpen(false);
-          setIsRoadmapOpen(false);
-        }}
-        onRoadmapClick={() => {
-          setIsRoadmapOpen(!isRoadmapOpen);
-          setIsSignalsOpen(false);
-          setIsAlertsOpen(false);
-        }}
-        onRefresh={handleRefresh}
-        isSignalsOpen={isSignalsOpen}
-        isAlertsOpen={isAlertsOpen}
-        isRoadmapOpen={isRoadmapOpen}
-        trend={currentSignal?.trend}
-        symbol={selectedSymbol}
-        connectivity={connectivity}
-        isRefreshing={isRefreshing}
-      />
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Responsive Sidebar */}
+        <AnimatePresence>
+          {(isMenuOpen || window.innerWidth >= 640) && (
+            <>
+              {/* Mobile Overlay */}
+              {isMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsMenuOpen(false)}
+                  className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] sm:hidden"
+                />
+              )}
+              
+              <motion.div 
+                initial={window.innerWidth < 640 ? { x: -300 } : undefined}
+                animate={{ x: 0 }}
+                exit={window.innerWidth < 640 ? { x: -300 } : undefined}
+                className={cn(
+                  "fixed inset-y-0 left-0 z-[101] sm:relative sm:z-0 sm:block",
+                  !isMenuOpen && "hidden sm:block"
+                )}
+              >
+                <Sidebar 
+                  activeView={activeView}
+                  onViewChange={(view) => {
+                    setActiveView(view);
+                    setIsMenuOpen(false); // Close on mobile after selection
+                  }}
+                  onClose={() => setIsMenuOpen(false)}
+                  marketData={allTickers}
+                  recentSignals={signals}
+                  portfolio={{
+                    balance: 142580,
+                    pnl: 1250,
+                    pnlPercent: 0.88
+                  }}
+                  botStatus={{
+                    apiStatus: connectivity === 'OFFLINE' ? 'OFFLINE' : 'ONLINE',
+                    uptime: '14d 6h',
+                    syncTime: '1.2s',
+                    errors: connectivity === 'OFFLINE' ? 1 : 0
+                  }}
+                  strategy={{
+                    rsi: lastRsi,
+                    ema: currentSignal?.trend === 'BULLISH' ? 'BULLISH' : 'BEARISH',
+                    atr: '0.45%',
+                    gainzScore: currentSignal?.regime?.gainzScore || 0
+                  }}
+                />
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
-      <main className="flex-1 flex overflow-hidden relative">
-        {/* Center Section: Chart and Market Stats */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative">
-          
-          {/* Layer 1: Asset & Important Market Data */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <Topbar 
+            onSignalsClick={() => {
+              setIsSignalsOpen(!isSignalsOpen);
+              setIsAlertsOpen(false);
+              setIsRoadmapOpen(false);
+            }}
+            onAlertsClick={() => {
+              setIsAlertsOpen(!isAlertsOpen);
+              setIsSignalsOpen(false);
+              setIsRoadmapOpen(false);
+            }}
+            onRoadmapClick={() => {
+              setIsRoadmapOpen(!isRoadmapOpen);
+              setIsSignalsOpen(false);
+              setIsAlertsOpen(false);
+            }}
+            onRefresh={handleRefresh}
+            isSignalsOpen={isSignalsOpen}
+            isAlertsOpen={isAlertsOpen}
+            isRoadmapOpen={isRoadmapOpen}
+            trend={currentSignal?.trend}
+            symbol={selectedSymbol}
+            connectivity={connectivity}
+            isRefreshing={isRefreshing}
+          />
+
+          <main className="flex-1 flex overflow-hidden relative">
+            {activeView === 'chart' ? (
+              /* Center Section: Chart and Market Stats */
+              <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-brand-bg relative pb-20 sm:pb-0">
+                
+                {/* Layer 1: Asset & Important Market Data */}
           <div className="h-16 border-b border-brand-border flex items-center px-4 gap-6 shrink-0 bg-brand-surface overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory">
             <div className="shrink-0 sticky left-0 z-20 bg-brand-surface pr-4 border-r border-white/5 md:border-none md:static snap-start">
               <CoinDropdown 
@@ -605,6 +657,47 @@ export default function App() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      ) : (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-brand-bg relative pb-20 sm:pb-0">
+                <div className="w-20 h-20 bg-brand-surface rounded-3xl flex items-center justify-center mb-6 shadow-2xl border border-white/5 overflow-hidden">
+                    {activeView === 'home' && <LayoutGrid className="w-10 h-10 text-brand-green" />}
+                    {activeView === 'portfolio' && <Wallet className="w-10 h-10 text-brand-yellow" />}
+                    {activeView === 'signals' && <Zap className="w-10 h-10 text-brand-blue" />}
+                    {['strategy', 'risk', 'backtest', 'sensitivity'].includes(activeView) && <Cpu className="w-10 h-10 text-brand-blue" />}
+                    {['settings', 'api', 'logs', 'about', 'appearance'].includes(activeView) && <Settings className="w-10 h-10 text-gray-400" />}
+                    {['alerts', 'telegram', 'filters'].includes(activeView) && <Bell className="w-10 h-10 text-brand-yellow" />}
+                </div>
+                <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase mb-2">
+                  {activeView} <span className="text-brand-green">Alpha</span>
+                </h2>
+                <div className="flex items-center gap-2 mb-6">
+                   <div className="px-2 py-0.5 rounded bg-brand-green/10 border border-brand-green/20">
+                      <span className="text-[10px] font-black text-brand-green uppercase tracking-widest">In Development</span>
+                   </div>
+                </div>
+                <p className="text-sm text-gray-500 max-w-sm font-medium">
+                  The {activeView} module is being finalized for the 2026 Engine update. 
+                  Core trade logic and market connectivity remain active.
+                </p>
+                <div className="mt-8 flex gap-3">
+                    <button 
+                      onClick={() => setActiveView('chart')}
+                      className="px-6 py-2 bg-brand-green text-black font-black uppercase text-[10px] rounded-xl tracking-widest hover:bg-emerald-500 transition-all flex items-center gap-2"
+                    >
+                      <LineChart className="w-3.5 h-3.5" />
+                      View Terminal
+                    </button>
+                    <button 
+                      onClick={() => setActiveView('home')}
+                      className="px-6 py-2 bg-white/5 text-gray-400 font-black uppercase text-[10px] rounded-xl tracking-widest border border-white/10 hover:bg-white/10 transition-all"
+                    >
+                      Dashboard
+                    </button>
+                </div>
+              </div>
+            )}
 
             {/* Floating Signal Details Panel (Side Sheet) */}
             <AnimatePresence>
@@ -743,9 +836,15 @@ export default function App() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </main>
+          
+          <BottomNav 
+            activeView={activeView} 
+            onViewChange={setActiveView} 
+            onMenuClick={() => setIsMenuOpen(true)} 
+          />
         </div>
-      </main>
+      </div>
 
       <CryptoChatbot 
         selectedSymbol={selectedSymbol} 

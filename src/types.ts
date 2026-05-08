@@ -35,6 +35,8 @@ export interface MarketSignal {
 
 export type Timeframe = '1m' | '5m' | '15m' | '1H' | '4H' | '1D';
 
+export type AppView = 'home' | 'signals' | 'chart' | 'portfolio' | 'settings' | 'alerts' | 'api' | 'appearance' | 'logs' | 'about' | 'strategy' | 'backtest' | 'risk' | 'sensitivity' | 'telegram' | 'filters';
+
 export interface CoinMetadata {
   symbol: string;
   name: string;

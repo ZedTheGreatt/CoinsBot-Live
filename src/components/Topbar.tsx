@@ -2,7 +2,6 @@ import { Bell, Search, Settings, User, Activity, Menu, Zap, Rocket, RefreshCw } 
 import { cn } from '../lib/utils';
 
 interface TopbarProps {
-  onMenuClick?: () => void;
   onSignalsClick?: () => void;
   onAlertsClick?: () => void;
   onRoadmapClick?: () => void;
@@ -17,7 +16,6 @@ interface TopbarProps {
 }
 
 export default function Topbar({ 
-  onMenuClick, 
   onSignalsClick, 
   onAlertsClick, 
   onRoadmapClick,
@@ -33,12 +31,6 @@ export default function Topbar({
   return (
     <header className="h-12 sm:h-14 border-b border-brand-border flex items-center justify-between px-3 sm:px-4 shrink-0 bg-brand-bg transition-all">
       <div className="flex items-center space-x-3 sm:space-x-6">
-        <button 
-          onClick={onMenuClick}
-          className="group p-2 hover:bg-brand-surface rounded-xl text-gray-400 transition-all border border-transparent hover:border-brand-border active:scale-95"
-        >
-          <Menu className="w-5 h-5 group-hover:text-white" />
-        </button>
         <div className="flex items-center space-x-2">
           <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-brand-green to-brand-blue rounded-lg flex items-center justify-center shrink-0">
             <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
